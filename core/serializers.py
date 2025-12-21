@@ -1,0 +1,229 @@
+from rest_framework import serializers
+from django.conf import settings
+from .models import (
+    MiningPackage, Deposit, Wallet, DailyEarning, Transaction,
+    Referral, Withdrawal, Product, Order, ROISetting, ReinvestSetting, WithdrawalTaxSetting, Category, ProductImage
+)
+from users.models import User
+
+
+class MiningPackageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MiningPackage
+        fields = '__all__'
+
+
+class DepositSerializer(serializers.ModelSerializer):
+    package_name = serializers.CharField(source='package.name', read_only=True)
+    daily_earning = serializers.DecimalField(source='package.daily_earning', read_only=True, max_digits=12, decimal_places=2)
+    remaining_days = serializers.IntegerField(read_only=True)
+    deposit_proof_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Deposit
+        fields = ['id', 'user', 'package', 'package_name', 'amount', 'status', 
+                  'payment_method', 'transaction_id', 'deposit_proof', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
+                  'approved_at', 'created_at', 'updated_at']
+        read_only_fields = ['status', 'user', 'approved_by', 'approved_at']
+
+    def get_deposit_proof_url(self, obj):
+        if obj.deposit_proof:
+            url = obj.deposit_proof.url if hasattr(obj.deposit_proof, 'url') else str(obj.deposit_proof)
+            if url and not url.startswith('http'):
+                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
+                if not base_url:
+                    base_url = 'http://localhost:8000'
+                return f"{base_url}{url}"
+            return url
+        return None
+
+
+class DepositDetailSerializer(serializers.ModelSerializer):
+    package = MiningPackageSerializer(read_only=True)
+    approved_by_email = serializers.CharField(source='approved_by.email', read_only=True, allow_null=True)
+    daily_earning = serializers.DecimalField(source='package.daily_earning', read_only=True, max_digits=12, decimal_places=2)
+    remaining_days = serializers.IntegerField(read_only=True)
+    deposit_proof_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Deposit
+        fields = ['id', 'user', 'package', 'amount', 'status', 'payment_method', 
+                  'transaction_id', 'deposit_proof', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
+                  'approved_by', 'approved_by_email', 'approved_at', 'rejection_reason',
+                  'created_at', 'updated_at']
+
+    def get_deposit_proof_url(self, obj):
+        if obj.deposit_proof:
+            url = obj.deposit_proof.url if hasattr(obj.deposit_proof, 'url') else str(obj.deposit_proof)
+            if url and not url.startswith('http'):
+                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
+                if not base_url:
+                    base_url = 'http://localhost:8000'
+                return f"{base_url}{url}"
+            return url
+        return None
+
+
+class WalletSerializer(serializers.ModelSerializer):
+    total_earnings = serializers.DecimalField(read_only=True, max_digits=14, decimal_places=2)
+
+    class Meta:
+        model = Wallet
+        fields = '__all__'
+        read_only_fields = ['user', 'balance']
+
+
+class DailyEarningSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DailyEarning
+        fields = '__all__'
+
+
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = '__all__'
+        read_only_fields = ['user']
+
+
+class ReferralSerializer(serializers.ModelSerializer):
+    referrer_email = serializers.CharField(source='referrer.email', read_only=True)
+    referral_email = serializers.CharField(source='referral_user.email', read_only=True)
+    referral_name = serializers.CharField(source='referral_user.get_full_name', read_only=True)
+
+    class Meta:
+        model = Referral
+        fields = ['id', 'referrer', 'referrer_email', 'referral_user', 'referral_email', 
+                  'referral_name', 'level', 'commission_percentage', 'total_earned', 'created_at']
+        read_only_fields = ['total_earned', 'commission_percentage']
+
+
+class WithdrawalSerializer(serializers.ModelSerializer):
+    user_email = serializers.CharField(source='user.email', read_only=True)
+
+    class Meta:
+        model = Withdrawal
+        fields = ['id', 'user', 'user_email', 'amount', 'withdrawal_method', 'withdrawal_account',
+                  'status', 'tax_amount', 'net_amount', 'created_at', 'updated_at']
+        read_only_fields = ['status', 'user', 'tax_amount', 'net_amount', 'approved_by']
+
+
+class WithdrawalDetailSerializer(serializers.ModelSerializer):
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    approved_by_email = serializers.CharField(source='approved_by.email', read_only=True, allow_null=True)
+
+    class Meta:
+        model = Withdrawal
+        fields = '__all__'
+        read_only_fields = ['user', 'tax_amount', 'net_amount']
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = '__all__'
+
+
+class ProductImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'image', 'image_url', 'alt_text', 'is_primary', 'order']
+
+    def get_image_url(self, obj):
+        if obj.image:
+            url = obj.image.url if hasattr(obj.image, 'url') else str(obj.image)
+            if url and not url.startswith('http'):
+                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
+                if not base_url:
+                    base_url = 'http://localhost:8000'
+                return f"{base_url}{url}"
+            return url
+        return None
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    image_url = serializers.SerializerMethodField()
+    product_images = ProductImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Product
+        fields = '__all__'
+
+    def get_image_url(self, obj):
+        if obj.image:
+            url = obj.image.url if hasattr(obj.image, 'url') else str(obj.image)
+            if url and not url.startswith('http'):
+                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
+                if not base_url:
+                    base_url = 'http://localhost:8000'
+                return f"{base_url}{url}"
+            return url
+        return None
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_image = serializers.ImageField(source='product.image', read_only=True)
+    txid_proof_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = ['id', 'user', 'product', 'product_name', 'product_image', 'quantity',
+                  'total_price', 'discount_percentage', 'final_price', 'delivery_charges', 'payment_method',
+                  'status', 'shipping_address', 'phone', 'email', 'customer_name', 'transaction_id',
+                  'txid', 'txid_proof', 'txid_proof_url', 'created_at', 'updated_at']
+        read_only_fields = ['status', 'user', 'total_price', 'final_price']
+
+    def get_txid_proof_url(self, obj):
+        if obj.txid_proof:
+            url = obj.txid_proof.url if hasattr(obj.txid_proof, 'url') else str(obj.txid_proof)
+            if url and not url.startswith('http'):
+                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
+                if not base_url:
+                    base_url = 'http://localhost:8000'
+                return f"{base_url}{url}"
+            return url
+        return None
+
+
+class OrderDetailSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    txid_proof_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = '__all__'
+        read_only_fields = ['user', 'total_price', 'final_price']
+
+    def get_txid_proof_url(self, obj):
+        if obj.txid_proof:
+            url = obj.txid_proof.url if hasattr(obj.txid_proof, 'url') else str(obj.txid_proof)
+            if url and not url.startswith('http'):
+                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
+                if not base_url:
+                    base_url = 'http://localhost:8000'
+                return f"{base_url}{url}"
+            return url
+        return None
+
+
+class ROISettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ROISetting
+        fields = '__all__'
+
+
+class ReinvestSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReinvestSetting
+        fields = '__all__'
+
+
+class WithdrawalTaxSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WithdrawalTaxSetting
+        fields = '__all__'
