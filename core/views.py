@@ -113,6 +113,60 @@ class DepositViewSet(viewsets.ModelViewSet):
 
         return Response(DepositSerializer(deposit).data, status=status.HTTP_201_CREATED)
 
+    def _process_referral_commissions(self, deposit):
+        levels_config = [
+            {'level': 1, 'percentage': Decimal('5.00'), 'requires_deposit': False},
+            {'level': 2, 'percentage': Decimal('2.00'), 'requires_deposit': True},
+            {'level': 3, 'percentage': Decimal('1.00'), 'requires_deposit': True},
+        ]
+        
+        current_user = deposit.user.referred_by
+        current_level = 1
+        
+        while current_user and current_level <= 3:
+            if current_user.account_status != 'active':
+                break
+            
+            level_config = levels_config[current_level - 1]
+            
+            if current_level > 1:
+                has_deposit = Deposit.objects.filter(
+                    user=current_user,
+                    status='approved'
+                ).exists()
+                if not has_deposit:
+                    current_user = current_user.referred_by
+                    current_level += 1
+                    continue
+            
+            commission_amount = Decimal(deposit.amount) * (level_config['percentage'] / Decimal('100'))
+            
+            referral, created = Referral.objects.get_or_create(
+                referrer=current_user,
+                referral_user=deposit.user,
+                defaults={'level': current_level, 'commission_percentage': level_config['percentage']}
+            )
+            referral.total_earned += commission_amount
+            referral.save()
+            
+            try:
+                referrer_wallet = current_user.wallet
+            except Wallet.DoesNotExist:
+                referrer_wallet = Wallet.objects.create(user=current_user, balance=0)
+            
+            referrer_wallet.referral_earnings += commission_amount
+            referrer_wallet.save()
+            
+            Transaction.objects.create(
+                user=current_user,
+                transaction_type='referral',
+                amount=commission_amount,
+                description=f'Level {current_level} referral commission from {deposit.user.email} deposit'
+            )
+            
+            current_user = current_user.referred_by
+            current_level += 1
+
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def approve(self, request, pk=None):
         deposit = self.get_object()
@@ -146,27 +200,7 @@ class DepositViewSet(viewsets.ModelViewSet):
         wallet.save()
 
         if deposit.user.referred_by:
-            referrer = deposit.user.referred_by
-            commission_amount = Decimal(deposit.amount) * Decimal('0.05')
-            
-            referral, created = Referral.objects.get_or_create(
-                referrer=referrer,
-                referral_user=deposit.user,
-                defaults={'level': 1, 'commission_percentage': Decimal('5.00')}
-            )
-            referral.total_earned += commission_amount
-            referral.save()
-            
-            referrer_wallet = referrer.wallet
-            referrer_wallet.referral_earnings += commission_amount
-            referrer_wallet.save()
-            
-            Transaction.objects.create(
-                user=referrer,
-                transaction_type='referral',
-                amount=commission_amount,
-                description=f'Referral commission from {deposit.user.email} deposit'
-            )
+            self._process_referral_commissions(deposit)
 
         return Response({'message': 'Deposit approved', 'data': DepositSerializer(deposit).data})
 
@@ -271,18 +305,30 @@ class ReferralViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def team_statistics(self, request):
         user = request.user
-        total_directs = user.referrals_given.count()
-        total_earnings = Referral.objects.filter(referrer=user).aggregate(
-            total=Sum('total_earned'))['total'] or Decimal('0.00')
         
-        active_referrals = user.referrals_given.filter(
-            referral_user__deposits__status='approved'
-        ).distinct().count()
+        level1_referrals = Referral.objects.filter(referrer=user, level=1)
+        level2_referrals = Referral.objects.filter(referrer=user, level=2)
+        level3_referrals = Referral.objects.filter(referrer=user, level=3)
+        
+        level1_count = level1_referrals.count()
+        level2_count = level2_referrals.count()
+        level3_count = level3_referrals.count()
+        
+        level1_earnings = level1_referrals.aggregate(total=Sum('total_earned'))['total'] or Decimal('0.00')
+        level2_earnings = level2_referrals.aggregate(total=Sum('total_earned'))['total'] or Decimal('0.00')
+        level3_earnings = level3_referrals.aggregate(total=Sum('total_earned'))['total'] or Decimal('0.00')
+        total_earnings = level1_earnings + level2_earnings + level3_earnings
         
         return Response({
-            'total_directs': total_directs,
-            'active_referrals': active_referrals,
-            'total_team_earnings': total_earnings,
+            'direct_referrals': level1_count,
+            'total_team': level1_count + level2_count + level3_count,
+            'team_earnings': float(total_earnings),
+            'level1_count': level1_count,
+            'level1_earnings': float(level1_earnings),
+            'level2_count': level2_count,
+            'level2_earnings': float(level2_earnings),
+            'level3_count': level3_count,
+            'level3_earnings': float(level3_earnings),
         })
 
 

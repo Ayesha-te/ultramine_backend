@@ -1,7 +1,7 @@
 # Django Backend Setup Guide
 
 ## Overview
-This is the Django REST API backend for the Ultamine Pro Hub earning platform. It handles all business logic including:
+This is the Django REST API backend for the Ultramine Pro Hub earning platform. It handles all business logic including:
 - User authentication and management
 - Mining package management
 - Investment deposits and approvals

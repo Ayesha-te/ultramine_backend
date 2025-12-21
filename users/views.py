@@ -37,7 +37,7 @@ class UserViewSet(viewsets.ViewSet):
             from core.models import Wallet, Transaction
             from django.utils import timezone
             
-            wallet = Wallet.objects.create(user=user, balance=100)
+            wallet = Wallet.objects.create(user=user, balance=100, signup_bonus=100)
             
             Transaction.objects.create(
                 user=user,
@@ -97,14 +97,17 @@ class UserViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def my_referrals(self, request):
+        from core.models import Referral
         user = request.user
-        referrals = user.referrals.all()
+        referrals = Referral.objects.filter(referrer=user).select_related('referral_user')
         data = [{
-            'id': ref.id,
-            'email': ref.email,
-            'name': ref.get_full_name(),
-            'joined': ref.created_at,
-            'status': ref.account_status,
+            'id': ref.referral_user.id,
+            'email': ref.referral_user.email,
+            'name': ref.referral_user.get_full_name(),
+            'joined': ref.referral_user.created_at,
+            'status': ref.referral_user.account_status,
+            'level': ref.level,
+            'earnings': float(ref.total_earned),
         } for ref in referrals]
         return Response({'referrals': data})
 

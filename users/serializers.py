@@ -28,14 +28,29 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         
-        if 'referral_code' in validated_data and validated_data['referral_code']:
-            try:
-                referrer = User.objects.get(referral_code=validated_data['referral_code'])
-                user.referred_by = referrer
-            except User.DoesNotExist:
-                pass
+        referral_code = validated_data.get('referral_code', '').strip() if 'referral_code' in validated_data else ''
         
-        user.save()
+        if referral_code:
+            try:
+                referrer = User.objects.get(referral_code__iexact=referral_code)
+                user.referred_by = referrer
+                user.save()
+                
+                from core.models import Referral
+                from decimal import Decimal
+                Referral.objects.get_or_create(
+                    referrer=referrer,
+                    referral_user=user,
+                    defaults={'level': 1, 'commission_percentage': Decimal('5.00')}
+                )
+            except User.DoesNotExist:
+                user.save()
+            except Exception as e:
+                user.save()
+                raise serializers.ValidationError(f"Failed to create referral: {str(e)}")
+        else:
+            user.save()
+        
         return user
 
 

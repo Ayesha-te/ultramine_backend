@@ -46,7 +46,7 @@ class DepositAdmin(admin.ModelAdmin):
                     status='approved'
                 ).exclude(id=deposit.id).count() == 0
                 
-                if is_first:
+                if is_first and wallet.signup_bonus == 0:
                     signup_bonus = Decimal('100')
                     wallet.signup_bonus += signup_bonus
                     wallet.balance += signup_bonus

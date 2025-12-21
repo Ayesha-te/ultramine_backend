@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import timedelta
 from .models import (
     Deposit, DailyEarning, Wallet, Transaction, Referral,
-    ROISetting, ReinvestSetting
+    ROISetting, ReinvestSetting, Withdrawal
 )
 from users.models import User
 
