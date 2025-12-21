@@ -180,23 +180,6 @@ class DepositViewSet(viewsets.ModelViewSet):
         deposit.save()
 
         wallet = deposit.user.wallet
-        
-        is_first_deposit = Deposit.objects.filter(
-            user=deposit.user,
-            status='approved'
-        ).exclude(id=deposit.id).count() == 0
-        
-        signup_bonus = Decimal('100')
-        if is_first_deposit:
-            wallet.signup_bonus += signup_bonus
-            wallet.balance += signup_bonus
-            Transaction.objects.create(
-                user=deposit.user,
-                transaction_type='deposit',
-                amount=signup_bonus,
-                description='Signup bonus for first deposit'
-            )
-        
         wallet.save()
 
         if deposit.user.referred_by:

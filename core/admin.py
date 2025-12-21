@@ -38,20 +38,6 @@ class DepositAdmin(admin.ModelAdmin):
                 deposit.approved_at = timezone.now()
                 deposit.save()
                 
-                wallet = deposit.user.wallet
-                is_first_deposit = __import__('django.db.models', fromlist=['Q']).Q
-                from core.models import Deposit as DepositModel
-                is_first = DepositModel.objects.filter(
-                    user=deposit.user,
-                    status='approved'
-                ).exclude(id=deposit.id).count() == 0
-                
-                if is_first and wallet.signup_bonus == 0:
-                    signup_bonus = Decimal('100')
-                    wallet.signup_bonus += signup_bonus
-                    wallet.balance += signup_bonus
-                
-                wallet.save()
                 updated += 1
         
         self.message_user(request, f'{updated} deposits approved.')
