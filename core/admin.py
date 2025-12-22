@@ -3,6 +3,7 @@ from .models import (
     MiningPackage, Deposit, Wallet, DailyEarning, Transaction,
     Referral, Withdrawal, Product, ProductImage, Order, ROISetting, ReinvestSetting, Category
 )
+from .services import EarningService
 
 
 @admin.register(MiningPackage)
@@ -31,14 +32,34 @@ class DepositAdmin(admin.ModelAdmin):
         updated = 0
         for deposit in queryset:
             if deposit.status == 'pending':
+                user = deposit.user
+                wallet = user.wallet
+                wallet_balance_before = wallet.balance
+                wallet_signup_bonus_before = wallet.signup_bonus
+                
                 deposit.status = 'approved'
                 deposit.approved_by = request.user
                 from django.utils import timezone
-                from decimal import Decimal
                 deposit.approved_at = timezone.now()
                 deposit.save()
                 
+                wallet.refresh_from_db()
+                
+                if wallet.balance > wallet_balance_before:
+                    wallet.balance = wallet_balance_before
+                    wallet.save()
+                
+                if wallet.signup_bonus > wallet_signup_bonus_before:
+                    wallet.signup_bonus = wallet_signup_bonus_before
+                    wallet.save()
+                
                 updated += 1
+        
+        try:
+            EarningService.calculate_daily_earnings()
+            EarningService.process_referral_earnings()
+        except Exception as e:
+            pass
         
         self.message_user(request, f'{updated} deposits approved.')
     

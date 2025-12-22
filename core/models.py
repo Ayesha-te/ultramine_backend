@@ -52,7 +52,7 @@ class Deposit(models.Model):
 
     @property
     def remaining_days(self):
-        if self.status == 'approved':
+        if self.status == 'approved' and self.approved_at:
             elapsed = (timezone.now() - self.approved_at).days
             remaining = self.package.duration_days - elapsed
             return max(0, remaining)

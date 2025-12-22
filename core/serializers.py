@@ -14,9 +14,9 @@ class MiningPackageSerializer(serializers.ModelSerializer):
 
 
 class DepositSerializer(serializers.ModelSerializer):
-    package_name = serializers.CharField(source='package.name', read_only=True)
-    daily_earning = serializers.DecimalField(source='package.daily_earning', read_only=True, max_digits=12, decimal_places=2)
-    remaining_days = serializers.IntegerField(read_only=True)
+    package_name = serializers.SerializerMethodField()
+    daily_earning = serializers.SerializerMethodField()
+    remaining_days = serializers.SerializerMethodField()
     deposit_proof_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -25,6 +25,24 @@ class DepositSerializer(serializers.ModelSerializer):
                   'payment_method', 'transaction_id', 'deposit_proof', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
                   'approved_at', 'created_at', 'updated_at']
         read_only_fields = ['status', 'user', 'approved_by', 'approved_at']
+
+    def get_package_name(self, obj):
+        try:
+            return obj.package.name
+        except Exception:
+            return None
+
+    def get_daily_earning(self, obj):
+        try:
+            return obj.package.daily_earning
+        except Exception:
+            return None
+
+    def get_remaining_days(self, obj):
+        try:
+            return obj.remaining_days
+        except Exception:
+            return 0
 
     def get_deposit_proof_url(self, obj):
         if obj.deposit_proof:
@@ -41,8 +59,8 @@ class DepositSerializer(serializers.ModelSerializer):
 class DepositDetailSerializer(serializers.ModelSerializer):
     package = MiningPackageSerializer(read_only=True)
     approved_by_email = serializers.CharField(source='approved_by.email', read_only=True, allow_null=True)
-    daily_earning = serializers.DecimalField(source='package.daily_earning', read_only=True, max_digits=12, decimal_places=2)
-    remaining_days = serializers.IntegerField(read_only=True)
+    daily_earning = serializers.SerializerMethodField()
+    remaining_days = serializers.SerializerMethodField()
     deposit_proof_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -51,6 +69,18 @@ class DepositDetailSerializer(serializers.ModelSerializer):
                   'transaction_id', 'deposit_proof', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
                   'approved_by', 'approved_by_email', 'approved_at', 'rejection_reason',
                   'created_at', 'updated_at']
+
+    def get_daily_earning(self, obj):
+        try:
+            return obj.package.daily_earning
+        except Exception:
+            return None
+
+    def get_remaining_days(self, obj):
+        try:
+            return obj.remaining_days
+        except Exception:
+            return 0
 
     def get_deposit_proof_url(self, obj):
         if obj.deposit_proof:

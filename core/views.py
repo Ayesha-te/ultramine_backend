@@ -25,6 +25,7 @@ from .reports import (
     generate_earnings_report_excel, generate_earnings_report_pdf,
     generate_orders_report_excel, generate_orders_report_pdf
 )
+from .services import EarningService
 from users.models import User
 
 
@@ -174,16 +175,35 @@ class DepositViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Deposit already processed'}, 
                           status=status.HTTP_400_BAD_REQUEST)
 
+        user = deposit.user
+        wallet = user.wallet
+        
+        wallet_balance_before = wallet.balance
+        wallet_signup_bonus_before = wallet.signup_bonus
+
         deposit.status = 'approved'
         deposit.approved_by = request.user
         deposit.approved_at = timezone.now()
         deposit.save()
 
-        wallet = deposit.user.wallet
-        wallet.save()
+        wallet.refresh_from_db()
+        
+        if wallet.balance > wallet_balance_before:
+            wallet.balance = wallet_balance_before
+            wallet.save()
+        
+        if wallet.signup_bonus > wallet_signup_bonus_before:
+            wallet.signup_bonus = wallet_signup_bonus_before
+            wallet.save()
 
         if deposit.user.referred_by:
             self._process_referral_commissions(deposit)
+
+        try:
+            EarningService.calculate_daily_earnings()
+            EarningService.process_referral_earnings()
+        except Exception as e:
+            pass
 
         return Response({'message': 'Deposit approved', 'data': DepositSerializer(deposit).data})
 
