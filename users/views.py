@@ -28,68 +28,85 @@ class UserViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def register(self, request):
-        serializer = UserRegistrationSerializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                user = serializer.save()
-                user.referral_code = str(uuid.uuid4())[:8].upper()
-                user.save()
-                
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            serializer = UserRegistrationSerializer(data=request.data)
+            if serializer.is_valid():
                 try:
-                    from core.models import Wallet, Transaction
-                    from decimal import Decimal
+                    user = serializer.save()
+                    user.referral_code = str(uuid.uuid4())[:8].upper()
+                    user.save()
                     
-                    wallet, created = Wallet.objects.get_or_create(
-                        user=user,
-                        defaults={'balance': Decimal('100'), 'signup_bonus': Decimal('100')}
-                    )
+                    try:
+                        from core.models import Wallet, Transaction
+                        from decimal import Decimal
+                        
+                        wallet, created = Wallet.objects.get_or_create(
+                            user=user,
+                            defaults={'balance': Decimal('100'), 'signup_bonus': Decimal('100')}
+                        )
+                        
+                        Transaction.objects.create(
+                            user=user,
+                            transaction_type='deposit',
+                            amount=Decimal('100'),
+                            status='completed',
+                            description='Signup bonus'
+                        )
+                    except Exception as wallet_error:
+                        logger.error(f"Wallet creation error: {str(wallet_error)}", exc_info=True)
                     
-                    Transaction.objects.create(
-                        user=user,
-                        transaction_type='deposit',
-                        amount=Decimal('100'),
-                        status='completed',
-                        description='Signup bonus'
-                    )
-                except Exception as wallet_error:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"Wallet creation error: {str(wallet_error)}")
-                
-                token, created = Token.objects.get_or_create(user=user)
-                return Response({
-                    'message': 'User registered successfully',
-                    'user': UserDetailSerializer(user).data,
-                    'token': token.key
-                }, status=status.HTTP_201_CREATED)
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Registration error: {str(e)}")
-                return Response({
-                    'error': str(e),
-                    'detail': 'Failed to create user account. Please try again.'
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                    token, created = Token.objects.get_or_create(user=user)
+                    return Response({
+                        'message': 'User registered successfully',
+                        'user': UserDetailSerializer(user).data,
+                        'token': token.key
+                    }, status=status.HTTP_201_CREATED)
+                except Exception as e:
+                    logger.error(f"Registration error: {str(e)}", exc_info=True)
+                    return Response({
+                        'error': str(e),
+                        'detail': 'Failed to create user account. Please try again.'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Unexpected error in register: {str(e)}", exc_info=True)
+            return Response({
+                'error': str(e),
+                'detail': 'An unexpected error occurred during registration.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
     def login(self, request):
-        serializer = UserLoginSerializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                user = serializer.validated_data['user']
-                token, created = Token.objects.get_or_create(user=user)
-                return Response({
-                    'message': 'Login successful',
-                    'user': UserDetailSerializer(user).data,
-                    'token': token.key
-                }, status=status.HTTP_200_OK)
-            except Exception as e:
-                return Response({
-                    'error': str(e),
-                    'detail': 'Login failed. Please try again.'
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            serializer = UserLoginSerializer(data=request.data)
+            if serializer.is_valid():
+                try:
+                    user = serializer.validated_data['user']
+                    token, created = Token.objects.get_or_create(user=user)
+                    return Response({
+                        'message': 'Login successful',
+                        'user': UserDetailSerializer(user).data,
+                        'token': token.key
+                    }, status=status.HTTP_200_OK)
+                except Exception as e:
+                    logger.error(f"Login error: {str(e)}", exc_info=True)
+                    return Response({
+                        'error': str(e),
+                        'detail': 'Login failed. Please try again.'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Unexpected error in login: {str(e)}", exc_info=True)
+            return Response({
+                'error': str(e),
+                'detail': 'An unexpected error occurred during login.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'])
     def me(self, request):
