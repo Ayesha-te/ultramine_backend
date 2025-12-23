@@ -86,9 +86,7 @@ class DepositDetailSerializer(serializers.ModelSerializer):
         if obj.deposit_proof:
             url = obj.deposit_proof.url if hasattr(obj.deposit_proof, 'url') else str(obj.deposit_proof)
             if url and not url.startswith('http'):
-                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
-                if not base_url:
-                    base_url = 'http://localhost:8000'
+                base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000').rstrip('/')
                 return f"{base_url}{url}"
             return url
         return None
@@ -165,9 +163,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
         if obj.image:
             url = obj.image.url if hasattr(obj.image, 'url') else str(obj.image)
             if url and not url.startswith('http'):
-                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
-                if not base_url:
-                    base_url = 'http://localhost:8000'
+                base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000').rstrip('/')
                 return f"{base_url}{url}"
             return url
         return None
@@ -186,9 +182,7 @@ class ProductSerializer(serializers.ModelSerializer):
         if obj.image:
             url = obj.image.url if hasattr(obj.image, 'url') else str(obj.image)
             if url and not url.startswith('http'):
-                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
-                if not base_url:
-                    base_url = 'http://localhost:8000'
+                base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000').rstrip('/')
                 return f"{base_url}{url}"
             return url
         return None
@@ -211,9 +205,7 @@ class OrderSerializer(serializers.ModelSerializer):
         if obj.txid_proof:
             url = obj.txid_proof.url if hasattr(obj.txid_proof, 'url') else str(obj.txid_proof)
             if url and not url.startswith('http'):
-                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
-                if not base_url:
-                    base_url = 'http://localhost:8000'
+                base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000').rstrip('/')
                 return f"{base_url}{url}"
             return url
         return None
@@ -233,9 +225,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         if obj.txid_proof:
             url = obj.txid_proof.url if hasattr(obj.txid_proof, 'url') else str(obj.txid_proof)
             if url and not url.startswith('http'):
-                base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
-                if not base_url:
-                    base_url = 'http://localhost:8000'
+                base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000').rstrip('/')
                 return f"{base_url}{url}"
             return url
         return None

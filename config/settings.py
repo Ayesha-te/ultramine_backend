@@ -132,6 +132,8 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+SITE_URL = config('SITE_URL', default='http://localhost:8000')
+
 AUTH_USER_MODEL = 'users.User'
 
 REST_FRAMEWORK = {
