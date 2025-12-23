@@ -94,13 +94,18 @@ class DepositViewSet(viewsets.ModelViewSet):
             return Response({'error': f'Minimum investment is ₨{package.price}'}, 
                           status=status.HTTP_400_BAD_REQUEST)
 
+        proof_file = request.FILES.get('deposit_proof')
+        proof_bytes = proof_file.read() if proof_file else None
+
         deposit = Deposit.objects.create(
             user=request.user,
             package=package,
             amount=amount,
             payment_method=payment_method,
             transaction_id=request.data.get('transaction_id', ''),
-            deposit_proof=request.FILES.get('deposit_proof'),
+            deposit_proof=proof_bytes,
+            deposit_proof_filename=proof_file.name if proof_file else None,
+            deposit_proof_content_type=getattr(proof_file, 'content_type', 'application/octet-stream') if proof_file else None,
             account_name=request.data.get('account_name', ''),
             status='pending'
         )
@@ -496,9 +501,12 @@ class ProductViewSet(viewsets.ModelViewSet):
         
         uploaded_images = []
         for idx, file in enumerate(files):
+            file_bytes = file.read()
             product_image = ProductImage.objects.create(
                 product=product,
-                image=file,
+                image=file_bytes,
+                image_filename=file.name,
+                image_content_type=getattr(file, 'content_type', 'application/octet-stream'),
                 order=idx,
                 is_primary=(idx == 0)
             )

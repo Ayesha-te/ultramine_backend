@@ -19,13 +19,11 @@ class DepositSerializer(serializers.ModelSerializer):
     daily_earning = serializers.SerializerMethodField()
     remaining_days = serializers.SerializerMethodField()
     deposit_proof_url = serializers.SerializerMethodField()
-    # Accepts binary upload but never returns raw bytes
-    deposit_proof = serializers.BinaryField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Deposit
         fields = ['id', 'user', 'package', 'package_name', 'amount', 'status', 
-              'payment_method', 'transaction_id', 'deposit_proof', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
+              'payment_method', 'transaction_id', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
               'approved_at', 'created_at', 'updated_at']
         read_only_fields = ['status', 'user', 'approved_by', 'approved_at']
 
@@ -60,12 +58,11 @@ class DepositDetailSerializer(serializers.ModelSerializer):
     daily_earning = serializers.SerializerMethodField()
     remaining_days = serializers.SerializerMethodField()
     deposit_proof_url = serializers.SerializerMethodField()
-    deposit_proof = serializers.BinaryField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Deposit
         fields = ['id', 'user', 'package', 'amount', 'status', 'payment_method', 
-              'transaction_id', 'deposit_proof', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
+              'transaction_id', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
               'approved_by', 'approved_by_email', 'approved_at', 'rejection_reason',
               'created_at', 'updated_at']
 
@@ -150,11 +147,10 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
-    image = serializers.BinaryField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = ProductImage
-        fields = ['id', 'image', 'image_url', 'alt_text', 'is_primary', 'order']
+        fields = ['id', 'image_url', 'alt_text', 'is_primary', 'order']
 
     def get_image_url(self, obj):
         if obj.image:
@@ -167,14 +163,10 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     image_url = serializers.SerializerMethodField()
     product_images = ProductImageSerializer(many=True, read_only=True)
-    image = serializers.BinaryField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Product
         fields = '__all__'
-        extra_kwargs = {
-            'image': {'write_only': True, 'required': False, 'allow_null': True},
-        }
 
     def get_image_url(self, obj):
         if obj.image:
@@ -187,14 +179,13 @@ class OrderSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_image_url = serializers.SerializerMethodField()
     txid_proof_url = serializers.SerializerMethodField()
-    txid_proof = serializers.BinaryField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Order
         fields = ['id', 'user', 'product', 'product_name', 'product_image_url', 'quantity',
-                  'total_price', 'discount_percentage', 'final_price', 'delivery_charges', 'payment_method',
-                  'status', 'shipping_address', 'phone', 'email', 'customer_name', 'transaction_id',
-                  'txid', 'txid_proof', 'txid_proof_url', 'created_at', 'updated_at']
+              'total_price', 'discount_percentage', 'final_price', 'delivery_charges', 'payment_method',
+              'status', 'shipping_address', 'phone', 'email', 'customer_name', 'transaction_id',
+              'txid', 'txid_proof_url', 'created_at', 'updated_at']
         read_only_fields = ['status', 'user', 'total_price', 'final_price']
 
     def get_product_image_url(self, obj):
@@ -212,11 +203,13 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
     txid_proof_url = serializers.SerializerMethodField()
-    txid_proof = serializers.BinaryField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Order
-        fields = '__all__'
+        fields = ['id', 'user', 'user_email', 'product', 'quantity',
+                  'total_price', 'discount_percentage', 'final_price', 'delivery_charges', 'payment_method',
+                  'status', 'shipping_address', 'phone', 'email', 'customer_name', 'transaction_id',
+                  'txid', 'txid_proof_url', 'created_at', 'updated_at']
         read_only_fields = ['user', 'total_price', 'final_price']
 
     def get_txid_proof_url(self, obj):
