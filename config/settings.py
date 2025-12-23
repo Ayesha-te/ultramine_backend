@@ -158,6 +158,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8080',
     'http://127.0.0.1:8081',
     'http://127.0.0.1:8082',
+    'https://ultamine-pro-hub.vercel.app',
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -171,6 +172,19 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://ultamine-pro-hub.vercel.app',
 ]
 
 LOGGING = {
