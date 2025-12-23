@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from django.conf import settings
-import base64
 from .models import (
     MiningPackage, Deposit, Wallet, DailyEarning, Transaction,
     Referral, Withdrawal, Product, Order, ROISetting, ReinvestSetting, WithdrawalTaxSetting, Category, ProductImage
@@ -23,7 +22,7 @@ class DepositSerializer(serializers.ModelSerializer):
     class Meta:
         model = Deposit
         fields = ['id', 'user', 'package', 'package_name', 'amount', 'status', 
-              'payment_method', 'transaction_id', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
+              'payment_method', 'transaction_id', 'deposit_proof', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
               'approved_at', 'created_at', 'updated_at']
         read_only_fields = ['status', 'user', 'approved_by', 'approved_at']
 
@@ -47,8 +46,10 @@ class DepositSerializer(serializers.ModelSerializer):
 
     def get_deposit_proof_url(self, obj):
         if obj.deposit_proof:
-            # Convert binary data to base64 for display
-            return f"data:{obj.deposit_proof_content_type};base64,{base64.b64encode(obj.deposit_proof).decode()}"
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.deposit_proof.url)
+            return obj.deposit_proof.url
         return None
 
 
@@ -62,7 +63,7 @@ class DepositDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Deposit
         fields = ['id', 'user', 'package', 'amount', 'status', 'payment_method', 
-              'transaction_id', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
+              'transaction_id', 'deposit_proof', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
               'approved_by', 'approved_by_email', 'approved_at', 'rejection_reason',
               'created_at', 'updated_at']
 
@@ -80,8 +81,10 @@ class DepositDetailSerializer(serializers.ModelSerializer):
 
     def get_deposit_proof_url(self, obj):
         if obj.deposit_proof:
-            # Convert binary data to base64 for display
-            return f"data:{obj.deposit_proof_content_type};base64,{base64.b64encode(obj.deposit_proof).decode()}"
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.deposit_proof.url)
+            return obj.deposit_proof.url
         return None
 
 
@@ -150,12 +153,14 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductImage
-        fields = ['id', 'image_url', 'alt_text', 'is_primary', 'order']
+        fields = ['id', 'image', 'image_url', 'alt_text', 'is_primary', 'order']
 
     def get_image_url(self, obj):
         if obj.image:
-            # Convert binary data to base64 for display
-            return f"data:{obj.image_content_type};base64,{base64.b64encode(obj.image).decode()}"
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
         return None
 
 
@@ -166,12 +171,14 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = '__all__'
+        fields = ['id', 'name', 'description', 'price', 'delivery_charges', 'category', 'category_name', 'image', 'image_url', 'stock', 'is_active', 'product_images', 'created_at', 'updated_at']
 
     def get_image_url(self, obj):
         if obj.image:
-            # Convert binary data to base64 for display
-            return f"data:{obj.image_content_type};base64,{base64.b64encode(obj.image).decode()}"
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
         return None
 
 
@@ -185,17 +192,23 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'product', 'product_name', 'product_image_url', 'quantity',
               'total_price', 'discount_percentage', 'final_price', 'delivery_charges', 'payment_method',
               'status', 'shipping_address', 'phone', 'email', 'customer_name', 'transaction_id',
-              'txid', 'txid_proof_url', 'created_at', 'updated_at']
+              'txid', 'txid_proof', 'txid_proof_url', 'created_at', 'updated_at']
         read_only_fields = ['status', 'user', 'total_price', 'final_price']
 
     def get_product_image_url(self, obj):
         if obj.product and getattr(obj.product, 'image', None):
-            return f"data:{obj.product.image_content_type};base64,{base64.b64encode(obj.product.image).decode()}"
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.product.image.url)
+            return obj.product.image.url
         return None
 
     def get_txid_proof_url(self, obj):
         if obj.txid_proof:
-            return f"data:{obj.txid_proof_content_type};base64,{base64.b64encode(obj.txid_proof).decode()}"
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.txid_proof.url)
+            return obj.txid_proof.url
         return None
 
 
@@ -209,13 +222,15 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'user_email', 'product', 'quantity',
                   'total_price', 'discount_percentage', 'final_price', 'delivery_charges', 'payment_method',
                   'status', 'shipping_address', 'phone', 'email', 'customer_name', 'transaction_id',
-                  'txid', 'txid_proof_url', 'created_at', 'updated_at']
+                  'txid', 'txid_proof', 'txid_proof_url', 'created_at', 'updated_at']
         read_only_fields = ['user', 'total_price', 'final_price']
 
     def get_txid_proof_url(self, obj):
         if obj.txid_proof:
-            # Convert binary data to base64 for display
-            return f"data:{obj.txid_proof_content_type};base64,{base64.b64encode(obj.txid_proof).decode()}"
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.txid_proof.url)
+            return obj.txid_proof.url
         return None
 
 

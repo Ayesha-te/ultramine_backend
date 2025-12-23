@@ -501,12 +501,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         
         uploaded_images = []
         for idx, file in enumerate(files):
-            file_bytes = file.read()
             product_image = ProductImage.objects.create(
                 product=product,
-                image=file_bytes,
-                image_filename=file.name,
-                image_content_type=getattr(file, 'content_type', 'application/octet-stream'),
+                image=file,
+                alt_text=request.data.get(f'alt_text_{idx}', ''),
                 order=idx,
                 is_primary=(idx == 0)
             )
