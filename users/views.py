@@ -35,21 +35,26 @@ class UserViewSet(viewsets.ViewSet):
                 user.referral_code = str(uuid.uuid4())[:8].upper()
                 user.save()
                 
-                from core.models import Wallet, Transaction
-                from decimal import Decimal
-                
-                wallet, created = Wallet.objects.get_or_create(
-                    user=user,
-                    defaults={'balance': Decimal('100'), 'signup_bonus': Decimal('100')}
-                )
-                
-                Transaction.objects.create(
-                    user=user,
-                    transaction_type='deposit',
-                    amount=Decimal('100'),
-                    status='completed',
-                    description='Signup bonus'
-                )
+                try:
+                    from core.models import Wallet, Transaction
+                    from decimal import Decimal
+                    
+                    wallet, created = Wallet.objects.get_or_create(
+                        user=user,
+                        defaults={'balance': Decimal('100'), 'signup_bonus': Decimal('100')}
+                    )
+                    
+                    Transaction.objects.create(
+                        user=user,
+                        transaction_type='deposit',
+                        amount=Decimal('100'),
+                        status='completed',
+                        description='Signup bonus'
+                    )
+                except Exception as wallet_error:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Wallet creation error: {str(wallet_error)}")
                 
                 token, created = Token.objects.get_or_create(user=user)
                 return Response({
@@ -58,6 +63,9 @@ class UserViewSet(viewsets.ViewSet):
                     'token': token.key
                 }, status=status.HTTP_201_CREATED)
             except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Registration error: {str(e)}")
                 return Response({
                     'error': str(e),
                     'detail': 'Failed to create user account. Please try again.'
