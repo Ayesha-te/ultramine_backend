@@ -9,19 +9,23 @@ class CoreConfig(AppConfig):
     name = 'core'
     
     def ready(self):
-        from django.core.management import call_command
         import sys
         
-        if os.environ.get('SKIP_SCHEDULER_STARTUP') == 'true':
-            logger.info("Skipping scheduler startup (SKIP_SCHEDULER_STARTUP=true)")
+        if 'runserver' not in sys.argv and 'RUN_SCHEDULER' not in os.environ:
+            logger.info("Scheduler initialization disabled during deployment")
             return
         
-        if 'migrate' in sys.argv or 'collectstatic' in sys.argv:
-            logger.info("Skipping scheduler startup during migration/collectstatic")
+        if os.environ.get('RUN_SCHEDULER') == 'false':
+            logger.info("Skipping scheduler (RUN_SCHEDULER=false)")
+            return
+        
+        if 'migrate' in sys.argv or 'collectstatic' in sys.argv or 'gunicorn' in sys.argv:
+            logger.info("Skipping scheduler during deployment commands")
             return
         
         try:
             from .scheduler import start_scheduler
+            logger.info("Attempting to start scheduler...")
             start_scheduler()
         except Exception as e:
-            logger.warning(f"Could not start scheduler during app initialization: {str(e)}")
+            logger.warning(f"Could not start scheduler: {str(e)}")
