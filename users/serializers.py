@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.db.models import Sum
+from decimal import Decimal
 from .models import User
 
 
@@ -19,6 +20,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
+        from core.models import Referral
+        
         user = User.objects.create_user(
             username=validated_data['email'],
             email=validated_data['email'],
@@ -36,8 +39,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                 user.referred_by = referrer
                 user.save()
                 
-                from core.models import Referral
-                from decimal import Decimal
                 Referral.objects.get_or_create(
                     referrer=referrer,
                     referral_user=user,
@@ -59,9 +60,7 @@ class UserLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        print(f"DEBUG: Attempting login with username={data.get('username')}")
         user = authenticate(username=data['username'], password=data['password'])
-        print(f"DEBUG: authenticate() returned {user}")
         if not user:
             raise serializers.ValidationError("Invalid credentials")
         data['user'] = user

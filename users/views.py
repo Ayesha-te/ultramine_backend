@@ -30,42 +30,57 @@ class UserViewSet(viewsets.ViewSet):
     def register(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
-            user.referral_code = str(uuid.uuid4())[:8].upper()
-            user.save()
-            
-            from core.models import Wallet, Transaction
-            from django.utils import timezone
-            
-            wallet = Wallet.objects.create(user=user, balance=100, signup_bonus=100)
-            
-            Transaction.objects.create(
-                user=user,
-                transaction_type='deposit',
-                amount=100,
-                status='completed',
-                description='Signup bonus'
-            )
-            
-            token, created = Token.objects.get_or_create(user=user)
-            return Response({
-                'message': 'User registered successfully',
-                'user': UserDetailSerializer(user).data,
-                'token': token.key
-            }, status=status.HTTP_201_CREATED)
+            try:
+                user = serializer.save()
+                user.referral_code = str(uuid.uuid4())[:8].upper()
+                user.save()
+                
+                from core.models import Wallet, Transaction
+                from decimal import Decimal
+                
+                wallet, created = Wallet.objects.get_or_create(
+                    user=user,
+                    defaults={'balance': Decimal('100'), 'signup_bonus': Decimal('100')}
+                )
+                
+                Transaction.objects.create(
+                    user=user,
+                    transaction_type='deposit',
+                    amount=Decimal('100'),
+                    status='completed',
+                    description='Signup bonus'
+                )
+                
+                token, created = Token.objects.get_or_create(user=user)
+                return Response({
+                    'message': 'User registered successfully',
+                    'user': UserDetailSerializer(user).data,
+                    'token': token.key
+                }, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({
+                    'error': str(e),
+                    'detail': 'Failed to create user account. Please try again.'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'])
     def login(self, request):
         serializer = UserLoginSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.validated_data['user']
-            token, created = Token.objects.get_or_create(user=user)
-            return Response({
-                'message': 'Login successful',
-                'user': UserDetailSerializer(user).data,
-                'token': token.key
-            }, status=status.HTTP_200_OK)
+            try:
+                user = serializer.validated_data['user']
+                token, created = Token.objects.get_or_create(user=user)
+                return Response({
+                    'message': 'Login successful',
+                    'user': UserDetailSerializer(user).data,
+                    'token': token.key
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({
+                    'error': str(e),
+                    'detail': 'Login failed. Please try again.'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'])
