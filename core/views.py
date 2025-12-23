@@ -112,7 +112,7 @@ class DepositViewSet(viewsets.ModelViewSet):
             description=f'Deposit for {package.name}'
         )
 
-        return Response(DepositSerializer(deposit).data, status=status.HTTP_201_CREATED)
+        return Response(DepositSerializer(deposit, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
     def _process_referral_commissions(self, deposit):
         levels_config = [
@@ -205,7 +205,7 @@ class DepositViewSet(viewsets.ModelViewSet):
         except Exception as e:
             pass
 
-        return Response({'message': 'Deposit approved', 'data': DepositSerializer(deposit).data})
+        return Response({'message': 'Deposit approved', 'data': DepositSerializer(deposit, context={'request': request}).data})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def reject(self, request, pk=None):
@@ -218,7 +218,7 @@ class DepositViewSet(viewsets.ModelViewSet):
         deposit.rejection_reason = request.data.get('reason', '')
         deposit.save()
 
-        return Response({'message': 'Deposit rejected', 'data': DepositSerializer(deposit).data})
+        return Response({'message': 'Deposit rejected', 'data': DepositSerializer(deposit, context={'request': request}).data})
 
     @action(detail=False, methods=['get'])
     def pending(self, request):
@@ -239,10 +239,10 @@ class DepositViewSet(viewsets.ModelViewSet):
         deposits = Deposit.objects.filter(user=request.user).order_by('-created_at')
         page = self.paginate_queryset(deposits)
         if page is not None:
-            serializer = DepositDetailSerializer(page, many=True)
+            serializer = DepositDetailSerializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
         
-        serializer = DepositDetailSerializer(deposits, many=True)
+        serializer = DepositDetailSerializer(deposits, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -252,7 +252,7 @@ class WalletViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def my_wallet(self, request):
         wallet = get_object_or_404(Wallet, user=request.user)
-        return Response(WalletSerializer(wallet).data)
+        return Response(WalletSerializer(wallet, context={'request': request}).data)
 
     @action(detail=False, methods=['get'])
     def balance(self, request):
@@ -300,7 +300,7 @@ class ReferralViewSet(viewsets.ModelViewSet):
             'total_team': user.referrals_given.count(),
             'total_team_earnings': Referral.objects.filter(referrer=user).aggregate(
                 total=Sum('total_earned'))['total'] or 0,
-            'referrals': ReferralSerializer(direct_referrals, many=True).data
+            'referrals': ReferralSerializer(direct_referrals, many=True, context={'request': request}).data
         }
         
         return Response(team_stats)
@@ -376,7 +376,7 @@ class WithdrawalViewSet(viewsets.ModelViewSet):
             status='pending'
         )
 
-        return Response(WithdrawalDetailSerializer(withdrawal).data, 
+        return Response(WithdrawalDetailSerializer(withdrawal, context={'request': request}).data, 
                        status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
@@ -403,7 +403,7 @@ class WithdrawalViewSet(viewsets.ModelViewSet):
         )
 
         return Response({'message': 'Withdrawal approved', 
-                        'data': WithdrawalDetailSerializer(withdrawal).data})
+                        'data': WithdrawalDetailSerializer(withdrawal, context={'request': request}).data})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def reject(self, request, pk=None):
@@ -421,7 +421,7 @@ class WithdrawalViewSet(viewsets.ModelViewSet):
         wallet.save()
 
         return Response({'message': 'Withdrawal rejected', 
-                        'data': WithdrawalDetailSerializer(withdrawal).data})
+                        'data': WithdrawalDetailSerializer(withdrawal, context={'request': request}).data})
 
     @action(detail=False, methods=['get'])
     def pending(self, request):
@@ -431,10 +431,10 @@ class WithdrawalViewSet(viewsets.ModelViewSet):
         
         page = self.paginate_queryset(withdrawals)
         if page is not None:
-            serializer = WithdrawalDetailSerializer(page, many=True)
+            serializer = WithdrawalDetailSerializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
         
-        serializer = WithdrawalDetailSerializer(withdrawals, many=True)
+        serializer = WithdrawalDetailSerializer(withdrawals, many=True, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
@@ -442,10 +442,10 @@ class WithdrawalViewSet(viewsets.ModelViewSet):
         withdrawals = Withdrawal.objects.filter(user=request.user).order_by('-created_at')
         page = self.paginate_queryset(withdrawals)
         if page is not None:
-            serializer = WithdrawalDetailSerializer(page, many=True)
+            serializer = WithdrawalDetailSerializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
         
-        serializer = WithdrawalDetailSerializer(withdrawals, many=True)
+        serializer = WithdrawalDetailSerializer(withdrawals, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -502,7 +502,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 order=idx,
                 is_primary=(idx == 0)
             )
-            uploaded_images.append(ProductImageSerializer(product_image).data)
+            uploaded_images.append(ProductImageSerializer(product_image, context={'request': request}).data)
         
         return Response({
             'message': f'{len(uploaded_images)} images uploaded successfully',
@@ -528,7 +528,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def categories(self, request):
         categories = Category.objects.filter(is_active=True)
-        serializer = CategorySerializer(categories, many=True)
+        serializer = CategorySerializer(categories, many=True, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
@@ -599,7 +599,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             description=f'Order for {product.name}'
         )
 
-        return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
+        return Response(OrderDetailSerializer(order, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def confirm(self, request, pk=None):
@@ -611,7 +611,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         order.status = 'confirmed'
         order.save()
         
-        return Response({'message': 'Order confirmed', 'data': OrderDetailSerializer(order).data})
+        return Response({'message': 'Order confirmed', 'data': OrderDetailSerializer(order, context={'request': request}).data})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def deliver(self, request, pk=None):
@@ -623,7 +623,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         order.status = 'delivered'
         order.save()
         
-        return Response({'message': 'Order delivered', 'data': OrderDetailSerializer(order).data})
+        return Response({'message': 'Order delivered', 'data': OrderDetailSerializer(order, context={'request': request}).data})
 
     @action(detail=False, methods=['get'])
     def pending(self, request):
@@ -633,10 +633,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         page = self.paginate_queryset(orders)
         if page is not None:
-            serializer = OrderDetailSerializer(page, many=True)
+            serializer = OrderDetailSerializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
         
-        serializer = OrderDetailSerializer(orders, many=True)
+        serializer = OrderDetailSerializer(orders, many=True, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
@@ -644,10 +644,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         orders = Order.objects.filter(user=request.user).order_by('-created_at')
         page = self.paginate_queryset(orders)
         if page is not None:
-            serializer = OrderDetailSerializer(page, many=True)
+            serializer = OrderDetailSerializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
         
-        serializer = OrderDetailSerializer(orders, many=True)
+        serializer = OrderDetailSerializer(orders, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -660,7 +660,7 @@ class ROISettingViewSet(viewsets.ModelViewSet):
     def current(self, request):
         roi = ROISetting.objects.filter(is_active=True).first()
         if roi:
-            return Response(ROISettingSerializer(roi).data)
+            return Response(ROISettingSerializer(roi, context={'request': request}).data)
         return Response({'error': 'ROI setting not configured'}, 
                        status=status.HTTP_404_NOT_FOUND)
 
@@ -674,7 +674,7 @@ class ReinvestSettingViewSet(viewsets.ModelViewSet):
     def current(self, request):
         setting = ReinvestSetting.objects.filter(is_active=True).first()
         if setting:
-            return Response(ReinvestSettingSerializer(setting).data)
+            return Response(ReinvestSettingSerializer(setting, context={'request': request}).data)
         return Response({'error': 'Reinvest setting not configured'}, 
                        status=status.HTTP_404_NOT_FOUND)
 
@@ -688,7 +688,7 @@ class WithdrawalTaxSettingViewSet(viewsets.ModelViewSet):
     def current(self, request):
         setting = WithdrawalTaxSetting.objects.filter(is_active=True).first()
         if setting:
-            return Response(WithdrawalTaxSettingSerializer(setting).data)
+            return Response(WithdrawalTaxSettingSerializer(setting, context={'request': request}).data)
         return Response({'error': 'Withdrawal tax setting not configured'}, 
                        status=status.HTTP_404_NOT_FOUND)
 

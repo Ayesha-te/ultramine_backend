@@ -132,7 +132,15 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-SITE_URL = config('SITE_URL', default='http://localhost:8000')
+def get_site_url():
+    site_url = config('SITE_URL', default='')
+    if site_url:
+        return site_url
+    if DEBUG:
+        return 'http://localhost:8000'
+    return f'https://{ALLOWED_HOSTS[0]}' if ALLOWED_HOSTS and ALLOWED_HOSTS[0] != '*' else 'https://example.com'
+
+SITE_URL = get_site_url()
 
 AUTH_USER_MODEL = 'users.User'
 
