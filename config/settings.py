@@ -129,8 +129,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 def get_site_url():
     site_url = config('SITE_URL', default='')
@@ -237,23 +240,34 @@ AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
 AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
 
 if USE_S3:
-    INSTALLED_APPS.append('storages')
+    if 'storages' not in INSTALLED_APPS:
+        INSTALLED_APPS.append('storages')
     
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+    AWS_S3_ADDRESSING_STYLE = 'virtual'
     
     STORAGES = {
         'default': {
             'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+            'OPTIONS': {
+                'location': 'media',
+                'file_overwrite': False,
+            }
         },
         'staticfiles': {
-            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+            'BACKEND': 'storages.backends.s3boto3.S3StaticStorage',
+            'OPTIONS': {
+                'location': 'static',
+            }
         }
     }
     
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
-    MEDIA_ROOT = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
-    CORS_ALLOWED_ORIGINS.append(f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com')
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+    
+    if f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com' not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com')
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'

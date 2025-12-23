@@ -39,7 +39,9 @@ class Deposit(models.Model):
         ('cod', 'Cash on Delivery'),
     ])
     transaction_id = models.CharField(max_length=100, blank=True)
-    deposit_proof = models.ImageField(upload_to='deposit_proofs/', null=True, blank=True)
+    deposit_proof = models.BinaryField(null=True, blank=True)  # Image stored as binary in DB
+    deposit_proof_filename = models.CharField(max_length=255, null=True, blank=True)
+    deposit_proof_content_type = models.CharField(max_length=50, default='image/jpeg')
     account_name = models.CharField(max_length=200, blank=True)
     approved_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='approved_deposits')
     approved_at = models.DateTimeField(null=True, blank=True)
@@ -206,7 +208,9 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=12, decimal_places=2)
     delivery_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
-    image = models.ImageField(upload_to='products/', null=True, blank=True)
+    image = models.BinaryField(null=True, blank=True)  # Main image stored as binary in DB
+    image_filename = models.CharField(max_length=255, null=True, blank=True)
+    image_content_type = models.CharField(max_length=50, default='image/jpeg')
     images = models.JSONField(default=list, blank=True)
     stock = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
@@ -222,7 +226,9 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_images')
-    image = models.ImageField(upload_to='products/')
+    image = models.BinaryField(null=True, blank=True)  # Image stored as binary in DB
+    image_filename = models.CharField(max_length=255, default='', blank=True)
+    image_content_type = models.CharField(max_length=50, default='image/jpeg')
     alt_text = models.CharField(max_length=200, blank=True)
     is_primary = models.BooleanField(default=False)
     order = models.IntegerField(default=0)
@@ -261,9 +267,10 @@ class Order(models.Model):
     phone = models.CharField(max_length=20)
     email = models.EmailField()
     customer_name = models.CharField(max_length=200, blank=True)
-    transaction_id = models.CharField(max_length=100, blank=True)
+    txid_proof = models.BinaryField(null=True, blank=True)  # Proof stored as binary in DB
+    txid_proof_filename = models.CharField(max_length=255, null=True, blank=True)
+    txid_proof_content_type = models.CharField(max_length=50, default='image/jpeg', null=True, blank=True)
     txid = models.CharField(max_length=200, blank=True, verbose_name="Transaction ID for Payment")
-    txid_proof = models.ImageField(upload_to='txid_proofs/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

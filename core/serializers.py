@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.conf import settings
+import base64
 from .models import (
     MiningPackage, Deposit, Wallet, DailyEarning, Transaction,
     Referral, Withdrawal, Product, Order, ROISetting, ReinvestSetting, WithdrawalTaxSetting, Category, ProductImage
@@ -46,17 +47,8 @@ class DepositSerializer(serializers.ModelSerializer):
 
     def get_deposit_proof_url(self, obj):
         if obj.deposit_proof:
-            url = obj.deposit_proof.url if hasattr(obj.deposit_proof, 'url') else str(obj.deposit_proof)
-            if url and not url.startswith('http'):
-                request = self.context.get('request')
-                if request:
-                    base_url = f"{request.scheme}://{request.get_host()}".rstrip('/')
-                else:
-                    base_url = getattr(settings, 'SITE_URL', '').rstrip('/')
-                    if not base_url:
-                        base_url = 'http://localhost:8000'
-                return f"{base_url}{url}"
-            return url
+            # Convert binary data to base64 for display
+            return f"data:{obj.deposit_proof_content_type};base64,{base64.b64encode(obj.deposit_proof).decode()}"
         return None
 
 
@@ -88,15 +80,8 @@ class DepositDetailSerializer(serializers.ModelSerializer):
 
     def get_deposit_proof_url(self, obj):
         if obj.deposit_proof:
-            url = obj.deposit_proof.url if hasattr(obj.deposit_proof, 'url') else str(obj.deposit_proof)
-            if url and not url.startswith('http'):
-                request = self.context.get('request')
-                if request:
-                    base_url = f"{request.scheme}://{request.get_host()}".rstrip('/')
-                else:
-                    base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000').rstrip('/')
-                return f"{base_url}{url}"
-            return url
+            # Convert binary data to base64 for display
+            return f"data:{obj.deposit_proof_content_type};base64,{base64.b64encode(obj.deposit_proof).decode()}"
         return None
 
 
@@ -169,15 +154,8 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         if obj.image:
-            url = obj.image.url if hasattr(obj.image, 'url') else str(obj.image)
-            if url and not url.startswith('http'):
-                request = self.context.get('request')
-                if request:
-                    base_url = f"{request.scheme}://{request.get_host()}".rstrip('/')
-                else:
-                    base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000').rstrip('/')
-                return f"{base_url}{url}"
-            return url
+            # Convert binary data to base64 for display
+            return f"data:{obj.image_content_type};base64,{base64.b64encode(obj.image).decode()}"
         return None
 
 
@@ -192,15 +170,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         if obj.image:
-            url = obj.image.url if hasattr(obj.image, 'url') else str(obj.image)
-            if url and not url.startswith('http'):
-                request = self.context.get('request')
-                if request:
-                    base_url = f"{request.scheme}://{request.get_host()}".rstrip('/')
-                else:
-                    base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000').rstrip('/')
-                return f"{base_url}{url}"
-            return url
+            # Convert binary data to base64 for display
+            return f"data:{obj.image_content_type};base64,{base64.b64encode(obj.image).decode()}"
         return None
 
 
@@ -243,15 +214,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     def get_txid_proof_url(self, obj):
         if obj.txid_proof:
-            url = obj.txid_proof.url if hasattr(obj.txid_proof, 'url') else str(obj.txid_proof)
-            if url and not url.startswith('http'):
-                request = self.context.get('request')
-                if request:
-                    base_url = f"{request.scheme}://{request.get_host()}".rstrip('/')
-                else:
-                    base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000').rstrip('/')
-                return f"{base_url}{url}"
-            return url
+            # Convert binary data to base64 for display
+            return f"data:{obj.txid_proof_content_type};base64,{base64.b64encode(obj.txid_proof).decode()}"
         return None
 
 
