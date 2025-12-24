@@ -80,45 +80,58 @@ class DepositViewSet(viewsets.ModelViewSet):
             return Deposit.objects.all()
         return Deposit.objects.filter(user=self.request.user)
 
-    def create(self, request, *args, **kwargs):
-        package_id = request.data.get('package')
-        amount = request.data.get('amount')
-        payment_method = request.data.get('payment_method')
+def create(self, request, *args, **kwargs):
+    package_id = request.data.get('package')
+    amount = request.data.get('amount')
+    payment_method = request.data.get('payment_method')
 
-        try:
-            package = MiningPackage.objects.get(id=package_id, is_active=True)
-        except MiningPackage.DoesNotExist:
-            return Response({'error': 'Package not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        if Decimal(amount) < package.price:
-            return Response({'error': f'Minimum investment is ₨{package.price}'}, 
-                          status=status.HTTP_400_BAD_REQUEST)
-
-        proof_file = request.FILES.get('deposit_proof')
-        proof_bytes = proof_file.read() if proof_file else None
-
-        deposit = Deposit.objects.create(
-            user=request.user,
-            package=package,
-            amount=amount,
-            payment_method=payment_method,
-            transaction_id=request.data.get('transaction_id', ''),
-            deposit_proof=proof_bytes,
-            deposit_proof_filename=proof_file.name if proof_file else None,
-            deposit_proof_content_type=getattr(proof_file, 'content_type', 'application/octet-stream') if proof_file else None,
-            account_name=request.data.get('account_name', ''),
-            status='pending'
+    try:
+        package = MiningPackage.objects.get(id=package_id, is_active=True)
+    except MiningPackage.DoesNotExist:
+        return Response(
+            {'error': 'Package not found'},
+            status=status.HTTP_404_NOT_FOUND
         )
 
-        Transaction.objects.create(
-            user=request.user,
-            transaction_type='deposit',
-            amount=amount,
-            description=f'Deposit for {package.name}'
+    if Decimal(amount) < package.price:
+        return Response(
+            {'error': f'Minimum investment is ₨{package.price}'},
+            status=status.HTTP_400_BAD_REQUEST
         )
 
-        return Response(DepositSerializer(deposit, context={'request': request}).data, status=status.HTTP_201_CREATED)
+    proof_file = request.FILES.get('deposit_proof')
 
+    if not proof_file:
+        return Response(
+            {'error': 'Deposit proof image is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    deposit = Deposit.objects.create(
+        user=request.user,
+        package=package,
+        amount=amount,
+        payment_method=payment_method,
+        transaction_id=request.data.get('transaction_id', ''),
+        deposit_proof=proof_file,  # ✅ FILE OBJECT ONLY
+        account_name=request.data.get('account_name', ''),
+        status='pending'
+    )
+
+    Transaction.objects.create(
+        user=request.user,
+        transaction_type='deposit',
+        amount=amount,
+        description=f'Deposit for {package.name}'
+    )
+
+    return Response(
+        DepositSerializer(deposit, context={'request': request}).data,
+        status=status.HTTP_201_CREATED
+    )
+
+
+    
     def _process_referral_commissions(self, deposit):
         levels_config = [
             {'level': 1, 'percentage': Decimal('5.00'), 'requires_deposit': False},
