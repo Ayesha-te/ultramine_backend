@@ -38,13 +38,14 @@ class DepositSerializer(serializers.ModelSerializer):
     remaining_days = serializers.SerializerMethodField()
     deposit_proof_url = serializers.SerializerMethodField()
     deposit_proof_file = serializers.FileField(write_only=True, required=False)
+    user_email = serializers.CharField(source='user.email', read_only=True)
 
     class Meta:
         model = Deposit
-        fields = ['id', 'user', 'package', 'package_name', 'amount', 'status', 
+        fields = ['id', 'user', 'user_email', 'package', 'package_name', 'amount', 'status', 
               'payment_method', 'transaction_id', 'deposit_proof', 'deposit_proof_url', 'deposit_proof_file', 'account_name', 'daily_earning', 'remaining_days',
               'approved_at', 'created_at', 'updated_at']
-        read_only_fields = ['status', 'user', 'approved_by', 'approved_at', 'deposit_proof']
+        read_only_fields = ['status', 'user', 'user_email', 'approved_by', 'approved_at', 'created_at', 'updated_at']
 
     def get_package_name(self, obj):
         if not obj.package:
@@ -69,21 +70,26 @@ class DepositSerializer(serializers.ModelSerializer):
             return 0
 
     def get_deposit_proof_url(self, obj):
-        if obj.deposit_proof:
-            try:
-                return str(obj.deposit_proof)
-            except Exception:
-                return None
-        return None
+        if not obj.deposit_proof:
+            return None
+        try:
+            url = str(obj.deposit_proof).strip()
+            if url and (url.startswith('http://') or url.startswith('https://')):
+                return url
+            return None
+        except Exception:
+            return None
 
     def _handle_deposit_proof_upload(self, validated_data):
         proof_file = validated_data.pop('deposit_proof_file', None)
         if proof_file:
             try:
                 image_url = upload_image_to_supabase(proof_file, folder='deposit_proofs')
+                if not image_url:
+                    raise Exception("Upload returned empty URL")
                 validated_data['deposit_proof'] = image_url
             except Exception as e:
-                raise serializers.ValidationError(f"Image upload failed: {str(e)}")
+                raise serializers.ValidationError(f"Failed to upload proof image: {str(e)}")
         else:
             validated_data['deposit_proof'] = None
 
@@ -101,6 +107,7 @@ class DepositSerializer(serializers.ModelSerializer):
 
 class DepositDetailSerializer(serializers.ModelSerializer):
     package = MiningPackageSerializer(read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
     approved_by_email = serializers.CharField(source='approved_by.email', read_only=True, allow_null=True)
     daily_earning = serializers.SerializerMethodField()
     remaining_days = serializers.SerializerMethodField()
@@ -108,7 +115,7 @@ class DepositDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Deposit
-        fields = ['id', 'user', 'package', 'amount', 'status', 'payment_method', 
+        fields = ['id', 'user', 'user_email', 'package', 'amount', 'status', 'payment_method', 
               'transaction_id', 'deposit_proof', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
               'approved_by', 'approved_by_email', 'approved_at', 'rejection_reason',
               'created_at', 'updated_at']
@@ -128,12 +135,15 @@ class DepositDetailSerializer(serializers.ModelSerializer):
             return 0
 
     def get_deposit_proof_url(self, obj):
-        if obj.deposit_proof:
-            try:
-                return str(obj.deposit_proof)
-            except Exception:
-                return None
-        return None
+        if not obj.deposit_proof:
+            return None
+        try:
+            url = str(obj.deposit_proof).strip()
+            if url and (url.startswith('http://') or url.startswith('https://')):
+                return url
+            return None
+        except Exception:
+            return None
 
 
 class WalletSerializer(serializers.ModelSerializer):
