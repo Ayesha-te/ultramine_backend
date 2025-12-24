@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from .models import (
     MiningPackage, Deposit, Wallet, DailyEarning, Transaction,
     Referral, Withdrawal, Product, ProductImage, Order, ROISetting, ReinvestSetting, Category
@@ -28,20 +29,18 @@ class DepositAdmin(admin.ModelAdmin):
     )
     
     def deposit_proof_display(self, obj):
-        if obj.deposit_proof:
-            from django.utils.html import format_html
-            try:
-                file_url = obj.deposit_proof.url
-                file_name = obj.deposit_proof.name.split('/')[-1] if obj.deposit_proof.name else 'Download'
-                return format_html(
-                    '<a href="{}" target="_blank" style="padding: 8px 12px; background-color: #417690; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">{}</a><br><br><img src="{}" style="max-width: 300px; max-height: 300px; margin-top: 10px;" alt="Proof" />',
-                    file_url,
-                    file_name,
-                    file_url
-                )
-            except Exception as e:
-                return format_html('<span style="color: red;">Error loading file: {}</span>', str(e))
-        return 'No proof uploaded'
+        if not obj.deposit_proof:
+            return 'No proof uploaded'
+
+        file_url = obj.deposit_proof
+        file_name = file_url.split('/')[-1] if '/' in file_url else file_url or 'Download'
+
+        return format_html(
+            '<a href="{}" target="_blank" style="padding: 8px 12px; background-color: #417690; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">{}</a><br><br><img src="{}" style="max-width: 300px; max-height: 300px; margin-top: 10px;" alt="Proof" />',
+            file_url,
+            file_name,
+            file_url
+        )
     
     deposit_proof_display.short_description = 'Proof Preview'
     
@@ -175,7 +174,17 @@ class WithdrawalAdmin(admin.ModelAdmin):
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 1
-    fields = ['image', 'alt_text', 'is_primary', 'order']
+    fields = ['image_preview', 'image', 'alt_text', 'is_primary', 'order']
+    readonly_fields = ['image_preview']
+
+    def image_preview(self, obj):
+        if obj and obj.image:
+            return format_html(
+                '<img src="{}" style="height:50px;width:50px;object-fit:cover;border-radius:4px;" />',
+                obj.image
+            )
+        return '-'
+    image_preview.short_description = 'Preview'
 
 
 @admin.register(Category)
@@ -188,19 +197,45 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'price', 'category', 'stock', 'is_active', 'created_at']
+    list_display = ['name', 'price', 'category', 'stock', 'is_active', 'image_preview', 'created_at']
     list_filter = ['is_active', 'category', 'created_at']
     search_fields = ['name', 'category__name', 'description']
     readonly_fields = ['created_at', 'updated_at']
     inlines = [ProductImageInline]
 
+    def image_preview(self, obj):
+        url = obj.image or self._primary_image_url(obj)
+        if url:
+            return format_html(
+                '<img src="{}" style="height:50px;width:50px;object-fit:cover;border-radius:4px;" />',
+                url
+            )
+        return '-'
+    image_preview.short_description = 'Preview'
+
+    def _primary_image_url(self, obj):
+        primary = obj.product_images.filter(is_primary=True).order_by('order', 'id').first()
+        if primary:
+            return primary.image
+        fallback = obj.product_images.order_by('order', 'id').first()
+        return fallback.image if fallback else None
+
 
 @admin.register(ProductImage)
 class ProductImageAdmin(admin.ModelAdmin):
-    list_display = ['product', 'is_primary', 'order', 'alt_text', 'created_at']
+    list_display = ['product', 'image_preview', 'is_primary', 'order', 'alt_text', 'created_at']
     list_filter = ['is_primary', 'product', 'created_at']
     search_fields = ['product__name', 'alt_text']
-    readonly_fields = ['created_at']
+    readonly_fields = ['created_at', 'image_preview']
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="height:50px;width:50px;object-fit:cover;border-radius:4px;" />',
+                obj.image
+            )
+        return '-'
+    image_preview.short_description = 'Preview'
 
 
 @admin.register(Order)
