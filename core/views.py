@@ -2,6 +2,7 @@ from rest_framework import viewsets, status, permissions, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -74,6 +75,7 @@ class DepositViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['created_at']
     ordering = ['-created_at']
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         if self.request.user.is_staff:
@@ -408,6 +410,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'category__name', 'description']
     ordering_fields = ['price', 'created_at']
     ordering = ['-created_at']
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         if self.request.user.is_staff:
