@@ -2,7 +2,6 @@ from rest_framework import viewsets, status, permissions, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -75,7 +74,6 @@ class DepositViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['created_at']
     ordering = ['-created_at']
-    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         if self.request.user.is_staff:
@@ -90,16 +88,14 @@ class DepositViewSet(viewsets.ModelViewSet):
         try:
             package = MiningPackage.objects.get(id=package_id, is_active=True)
         except MiningPackage.DoesNotExist:
-            return Response(
-                {'error': 'Package not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'error': 'Package not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if Decimal(amount) < package.price:
-            return Response(
-                {'error': f'Minimum investment is ₨{package.price}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': f'Minimum investment is ₨{package.price}'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        proof_file = request.FILES.get('deposit_proof')
+        proof_bytes = proof_file.read() if proof_file else None
 
         deposit = Deposit.objects.create(
             user=request.user,
@@ -107,7 +103,9 @@ class DepositViewSet(viewsets.ModelViewSet):
             amount=amount,
             payment_method=payment_method,
             transaction_id=request.data.get('transaction_id', ''),
-            deposit_proof=request.FILES.get('deposit_proof'),
+            deposit_proof=proof_bytes,
+            deposit_proof_filename=proof_file.name if proof_file else None,
+            deposit_proof_content_type=getattr(proof_file, 'content_type', 'application/octet-stream') if proof_file else None,
             account_name=request.data.get('account_name', ''),
             status='pending'
         )
@@ -119,28 +117,24 @@ class DepositViewSet(viewsets.ModelViewSet):
             description=f'Deposit for {package.name}'
         )
 
-        return Response(
-            DepositSerializer(deposit, context={'request': request}).data,
-            status=status.HTTP_201_CREATED
-        )
+        return Response(DepositSerializer(deposit, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
-    # ✅ SAME INDENT LEVEL AS create()
     def _process_referral_commissions(self, deposit):
         levels_config = [
             {'level': 1, 'percentage': Decimal('5.00'), 'requires_deposit': False},
             {'level': 2, 'percentage': Decimal('2.00'), 'requires_deposit': True},
             {'level': 3, 'percentage': Decimal('1.00'), 'requires_deposit': True},
         ]
-
+        
         current_user = deposit.user.referred_by
         current_level = 1
-
+        
         while current_user and current_level <= 3:
             if current_user.account_status != 'active':
                 break
-
+            
             level_config = levels_config[current_level - 1]
-
+            
             if current_level > 1:
                 has_deposit = Deposit.objects.filter(
                     user=current_user,
@@ -150,40 +144,112 @@ class DepositViewSet(viewsets.ModelViewSet):
                     current_user = current_user.referred_by
                     current_level += 1
                     continue
-
-            commission_amount = Decimal(deposit.amount) * (
-                level_config['percentage'] / Decimal('100')
-            )
-
-            referral, _ = Referral.objects.get_or_create(
+            
+            commission_amount = Decimal(deposit.amount) * (level_config['percentage'] / Decimal('100'))
+            
+            referral, created = Referral.objects.get_or_create(
                 referrer=current_user,
                 referral_user=deposit.user,
-                defaults={
-                    'level': current_level,
-                    'commission_percentage': level_config['percentage']
-                }
+                defaults={'level': current_level, 'commission_percentage': level_config['percentage']}
             )
-
             referral.total_earned += commission_amount
             referral.save()
-
-            wallet, _ = Wallet.objects.get_or_create(
-                user=current_user,
-                defaults={'balance': 0}
-            )
-
-            wallet.referral_earnings += commission_amount
-            wallet.save()
-
+            
+            try:
+                referrer_wallet = current_user.wallet
+            except Wallet.DoesNotExist:
+                referrer_wallet = Wallet.objects.create(user=current_user, balance=0)
+            
+            referrer_wallet.referral_earnings += commission_amount
+            referrer_wallet.save()
+            
             Transaction.objects.create(
                 user=current_user,
                 transaction_type='referral',
                 amount=commission_amount,
-                description=f'Level {current_level} referral commission from {deposit.user.email}'
+                description=f'Level {current_level} referral commission from {deposit.user.email} deposit'
             )
-
+            
             current_user = current_user.referred_by
             current_level += 1
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def approve(self, request, pk=None):
+        deposit = self.get_object()
+        if deposit.status != 'pending':
+            return Response({'error': 'Deposit already processed'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        user = deposit.user
+        wallet = user.wallet
+        
+        wallet_balance_before = wallet.balance
+        wallet_signup_bonus_before = wallet.signup_bonus
+
+        deposit.status = 'approved'
+        deposit.approved_by = request.user
+        deposit.approved_at = timezone.now()
+        deposit.save()
+
+        wallet.refresh_from_db()
+        
+        if wallet.balance > wallet_balance_before:
+            wallet.balance = wallet_balance_before
+            wallet.save()
+        
+        if wallet.signup_bonus > wallet_signup_bonus_before:
+            wallet.signup_bonus = wallet_signup_bonus_before
+            wallet.save()
+
+        if deposit.user.referred_by:
+            self._process_referral_commissions(deposit)
+
+        try:
+            EarningService.calculate_daily_earnings()
+            EarningService.process_referral_earnings()
+        except Exception as e:
+            pass
+
+        return Response({'message': 'Deposit approved', 'data': DepositSerializer(deposit, context={'request': request}).data})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def reject(self, request, pk=None):
+        deposit = self.get_object()
+        if deposit.status != 'pending':
+            return Response({'error': 'Deposit already processed'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        deposit.status = 'rejected'
+        deposit.rejection_reason = request.data.get('reason', '')
+        deposit.save()
+
+        return Response({'message': 'Deposit rejected', 'data': DepositSerializer(deposit, context={'request': request}).data})
+
+    @action(detail=False, methods=['get'])
+    def pending(self, request):
+        deposits = Deposit.objects.filter(status='pending').order_by('-created_at')
+        if not request.user.is_staff:
+            deposits = deposits.filter(user=request.user)
+        
+        page = self.paginate_queryset(deposits)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(deposits, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def my_deposits(self, request):
+        deposits = Deposit.objects.filter(user=request.user).order_by('-created_at')
+        page = self.paginate_queryset(deposits)
+        if page is not None:
+            serializer = DepositDetailSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = DepositDetailSerializer(deposits, many=True, context={'request': request})
+        return Response(serializer.data)
+
 
 class WalletViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticatedOrAdmin]
@@ -410,7 +476,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'category__name', 'description']
     ordering_fields = ['price', 'created_at']
     ordering = ['-created_at']
-    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         if self.request.user.is_staff:
