@@ -124,7 +124,77 @@ class DepositViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
-    # ✅ SAME INDENT LEVEL AS create()
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def approve(self, request, pk=None):
+        deposit = self.get_object()
+        if deposit.status != 'pending':
+            return Response({'error': 'Deposit already processed'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        deposit.status = 'approved'
+        deposit.approved_by = request.user
+        deposit.approved_at = timezone.now()
+        deposit.save()
+
+        wallet, _ = Wallet.objects.get_or_create(
+            user=deposit.user,
+            defaults={'balance': 0}
+        )
+        wallet.mining_income += deposit.amount
+        wallet.balance += deposit.amount
+        wallet.save()
+
+        Transaction.objects.create(
+            user=deposit.user,
+            transaction_type='deposit',
+            amount=deposit.amount,
+            description=f'Deposit approved for {deposit.package.name}'
+        )
+
+        self._process_referral_commissions(deposit)
+
+        return Response({'message': 'Deposit approved', 
+                        'data': DepositDetailSerializer(deposit, context={'request': request}).data})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def reject(self, request, pk=None):
+        deposit = self.get_object()
+        if deposit.status != 'pending':
+            return Response({'error': 'Deposit already processed'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        deposit.status = 'rejected'
+        deposit.rejection_reason = request.data.get('reason', '')
+        deposit.save()
+
+        return Response({'message': 'Deposit rejected', 
+                        'data': DepositDetailSerializer(deposit, context={'request': request}).data})
+
+    @action(detail=False, methods=['get'])
+    def my_deposits(self, request):
+        deposits = Deposit.objects.filter(user=request.user).order_by('-created_at')
+        page = self.paginate_queryset(deposits)
+        if page is not None:
+            serializer = DepositDetailSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = DepositDetailSerializer(deposits, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def pending(self, request):
+        deposits = Deposit.objects.filter(status='pending').order_by('-created_at')
+        if not request.user.is_staff:
+            deposits = deposits.filter(user=request.user)
+        
+        page = self.paginate_queryset(deposits)
+        if page is not None:
+            serializer = DepositDetailSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = DepositDetailSerializer(deposits, many=True, context={'request': request})
+        return Response(serializer.data)
+
     def _process_referral_commissions(self, deposit):
         levels_config = [
             {'level': 1, 'percentage': Decimal('5.00'), 'requires_deposit': False},
