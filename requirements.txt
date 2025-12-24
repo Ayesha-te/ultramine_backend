@@ -16,3 +16,5 @@ reportlab==4.0.7
 pandas==2.2.2
 numpy>=1.26
 gunicorn
+requests
+supabase-py
