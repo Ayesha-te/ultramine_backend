@@ -21,11 +21,6 @@ from .serializers import (
     ProductSerializer, ProductImageSerializer, OrderSerializer, OrderDetailSerializer,
     ROISettingSerializer, ReinvestSettingSerializer, WithdrawalTaxSettingSerializer, CategorySerializer
 )
-from .reports import (
-    generate_users_report_excel, generate_users_report_pdf,
-    generate_earnings_report_excel, generate_earnings_report_pdf,
-    generate_orders_report_excel, generate_orders_report_pdf
-)
 from .services import EarningService
 from users.models import User
 
@@ -735,6 +730,8 @@ class ReportViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def users_report(self, request):
+        from .reports import generate_users_report_excel, generate_users_report_pdf
+        
         file_format = request.query_params.get('format', 'excel')
         
         try:
@@ -761,6 +758,8 @@ class ReportViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def earnings_report(self, request):
+        from .reports import generate_earnings_report_excel, generate_earnings_report_pdf
+        
         file_format = request.query_params.get('format', 'excel')
         
         try:
@@ -787,6 +786,8 @@ class ReportViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def orders_report(self, request):
+        from .reports import generate_orders_report_excel, generate_orders_report_pdf
+        
         file_format = request.query_params.get('format', 'excel')
         
         try:

@@ -1,12 +1,5 @@
 from io import BytesIO
 from datetime import datetime
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
 from django.utils import timezone
 from django.db import models
 from decimal import Decimal
@@ -17,6 +10,9 @@ from users.models import User
 
 def generate_users_report_excel():
     """Generate Users Report in Excel format"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    
     buffer = BytesIO()
     workbook = Workbook()
     worksheet = workbook.active
@@ -74,6 +70,9 @@ def generate_users_report_excel():
 
 def generate_earnings_report_excel():
     """Generate Earnings Report in Excel format"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    
     buffer = BytesIO()
     workbook = Workbook()
     worksheet = workbook.active
@@ -120,6 +119,9 @@ def generate_earnings_report_excel():
 
 def generate_orders_report_excel():
     """Generate Orders Report in Excel format"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    
     buffer = BytesIO()
     workbook = Workbook()
     worksheet = workbook.active
@@ -169,6 +171,12 @@ def generate_orders_report_excel():
 
 def generate_users_report_pdf():
     """Generate Users Report in PDF format"""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
@@ -219,6 +227,12 @@ def generate_users_report_pdf():
 
 def generate_earnings_report_pdf():
     """Generate Earnings Report in PDF format"""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
@@ -268,6 +282,12 @@ def generate_earnings_report_pdf():
 
 def generate_orders_report_pdf():
     """Generate Orders Report in PDF format"""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
     elements = []
