@@ -13,10 +13,14 @@ def get_file_url(file_field, request=None):
     try:
         if isinstance(file_field, memoryview):
             return None
+        if not hasattr(file_field, 'url'):
+            return None
         url = file_field.url
         if request:
             return request.build_absolute_uri(url)
         return url
+    except (AttributeError, ValueError, TypeError):
+        return None
     except Exception:
         return None
 
@@ -41,12 +45,16 @@ class DepositSerializer(serializers.ModelSerializer):
         read_only_fields = ['status', 'user', 'approved_by', 'approved_at']
 
     def get_package_name(self, obj):
+        if not obj.package:
+            return None
         try:
             return obj.package.name
         except Exception:
             return None
 
     def get_daily_earning(self, obj):
+        if not obj.package:
+            return None
         try:
             return obj.package.daily_earning
         except Exception:
@@ -78,6 +86,8 @@ class DepositDetailSerializer(serializers.ModelSerializer):
               'created_at', 'updated_at']
 
     def get_daily_earning(self, obj):
+        if not obj.package:
+            return None
         try:
             return obj.package.daily_earning
         except Exception:
