@@ -38,14 +38,15 @@ class DepositSerializer(serializers.ModelSerializer):
     remaining_days = serializers.SerializerMethodField()
     deposit_proof_url = serializers.SerializerMethodField()
     deposit_proof_file = serializers.FileField(write_only=True, required=False)
-    user_email = serializers.CharField(source='user.email', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True, allow_null=True)
 
     class Meta:
         model = Deposit
         fields = ['id', 'user', 'user_email', 'package', 'package_name', 'amount', 'status', 
               'payment_method', 'transaction_id', 'deposit_proof', 'deposit_proof_url', 'deposit_proof_file', 'account_name', 'daily_earning', 'remaining_days',
               'approved_at', 'created_at', 'updated_at']
-        read_only_fields = ['status', 'user', 'user_email', 'approved_by', 'approved_at', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'status', 'user', 'user_email', 'package_name', 'daily_earning', 'remaining_days', 
+                           'deposit_proof', 'deposit_proof_url', 'approved_at', 'created_at', 'updated_at']
 
     def get_package_name(self, obj):
         if not obj.package:

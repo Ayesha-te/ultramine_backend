@@ -9,6 +9,9 @@ from django.shortcuts import get_object_or_404
 from django.http import FileResponse
 from decimal import Decimal
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 from .models import (
     MiningPackage, Deposit, Wallet, DailyEarning, Transaction,
@@ -81,23 +84,33 @@ class DepositViewSet(viewsets.ModelViewSet):
         package_id = request.data.get('package')
         amount = request.data.get('amount')
         payment_method = request.data.get('payment_method')
+        
+        logger.info(f"Deposit creation request - Package: {package_id}, Amount: {amount}, Method: {payment_method}")
+        logger.info(f"Request data keys: {list(request.data.keys())}")
 
         try:
             package = MiningPackage.objects.get(id=package_id, is_active=True)
         except MiningPackage.DoesNotExist:
+            logger.error(f"Package {package_id} not found")
             return Response(
                 {'error': 'Package not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
 
         if Decimal(amount) < package.price:
+            logger.error(f"Amount {amount} less than package price {package.price}")
             return Response(
                 {'error': f'Minimum investment is ₨{package.price}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            logger.error(f"Serializer validation failed: {serializer.errors}")
+            return Response(
+                {'errors': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         deposit = serializer.save(user=request.user, status='pending')
 
         Transaction.objects.create(
