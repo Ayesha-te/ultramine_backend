@@ -39,7 +39,7 @@ class Deposit(models.Model):
         ('cod', 'Cash on Delivery'),
     ])
     transaction_id = models.CharField(max_length=100, blank=True)
-    deposit_proof = models.FileField(upload_to='deposit_proofs/', null=True, blank=True)
+    deposit_proof = models.URLField(max_length=500, null=True, blank=True)
     account_name = models.CharField(max_length=200, blank=True)
     approved_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='approved_deposits')
     approved_at = models.DateTimeField(null=True, blank=True)
@@ -208,7 +208,7 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=12, decimal_places=2)
     delivery_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
-    image = models.FileField(upload_to='products/', null=True, blank=True)
+    image = models.URLField(max_length=500, null=True, blank=True)
     stock = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -223,7 +223,7 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_images')
-    image = models.FileField(upload_to='product_images/')
+    image = models.URLField(max_length=500)
     alt_text = models.CharField(max_length=200, blank=True)
     is_primary = models.BooleanField(default=False)
     order = models.IntegerField(default=0)
@@ -262,7 +262,7 @@ class Order(models.Model):
     phone = models.CharField(max_length=20)
     email = models.EmailField()
     customer_name = models.CharField(max_length=200, blank=True)
-    txid_proof = models.FileField(upload_to='order_proofs/', null=True, blank=True)
+    txid_proof = models.URLField(max_length=500, null=True, blank=True)
     txid = models.CharField(max_length=200, blank=True, verbose_name="Transaction ID for Payment")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

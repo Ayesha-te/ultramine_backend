@@ -96,16 +96,9 @@ class DepositViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        deposit = Deposit.objects.create(
-            user=request.user,
-            package=package,
-            amount=amount,
-            payment_method=payment_method,
-            transaction_id=request.data.get('transaction_id', ''),
-            deposit_proof=request.FILES.get('deposit_proof'),
-            account_name=request.data.get('account_name', ''),
-            status='pending'
-        )
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        deposit = serializer.save(user=request.user, status='pending')
 
         Transaction.objects.create(
             user=request.user,
@@ -501,14 +494,18 @@ class ProductViewSet(viewsets.ModelViewSet):
         
         uploaded_images = []
         for idx, file in enumerate(files):
-            product_image = ProductImage.objects.create(
-                product=product,
-                image=file,
-                alt_text=request.data.get(f'alt_text_{idx}', ''),
-                order=idx,
-                is_primary=(idx == 0)
-            )
-            uploaded_images.append(ProductImageSerializer(product_image, context={'request': request}).data)
+            data = {
+                'image_file': file,
+                'alt_text': request.data.get(f'alt_text_{idx}', ''),
+                'order': idx,
+                'is_primary': (idx == 0)
+            }
+            serializer = ProductImageSerializer(data=data, context={'request': request})
+            if serializer.is_valid():
+                product_image = serializer.save(product=product)
+                uploaded_images.append(ProductImageSerializer(product_image, context={'request': request}).data)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         return Response({
             'message': f'{len(uploaded_images)} images uploaded successfully',
@@ -560,6 +557,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.OrderingFilter]
     ordering = ['-created_at']
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         if self.request.user.is_staff:

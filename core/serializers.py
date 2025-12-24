@@ -4,6 +4,7 @@ from .models import (
     MiningPackage, Deposit, Wallet, DailyEarning, Transaction,
     Referral, Withdrawal, Product, Order, ROISetting, ReinvestSetting, WithdrawalTaxSetting, Category, ProductImage
 )
+from .image_utils import upload_image_to_supabase, delete_image_from_supabase
 from users.models import User
 
 
@@ -36,13 +37,14 @@ class DepositSerializer(serializers.ModelSerializer):
     daily_earning = serializers.SerializerMethodField()
     remaining_days = serializers.SerializerMethodField()
     deposit_proof_url = serializers.SerializerMethodField()
+    deposit_proof_file = serializers.FileField(write_only=True, required=False)
 
     class Meta:
         model = Deposit
         fields = ['id', 'user', 'package', 'package_name', 'amount', 'status', 
-              'payment_method', 'transaction_id', 'deposit_proof', 'deposit_proof_url', 'account_name', 'daily_earning', 'remaining_days',
+              'payment_method', 'transaction_id', 'deposit_proof', 'deposit_proof_url', 'deposit_proof_file', 'account_name', 'daily_earning', 'remaining_days',
               'approved_at', 'created_at', 'updated_at']
-        read_only_fields = ['status', 'user', 'approved_by', 'approved_at']
+        read_only_fields = ['status', 'user', 'approved_by', 'approved_at', 'deposit_proof']
 
     def get_package_name(self, obj):
         if not obj.package:
@@ -67,8 +69,31 @@ class DepositSerializer(serializers.ModelSerializer):
             return 0
 
     def get_deposit_proof_url(self, obj):
-        request = self.context.get('request')
-        return get_file_url(obj.deposit_proof, request)
+        if obj.deposit_proof:
+            return str(obj.deposit_proof) if isinstance(obj.deposit_proof, str) and obj.deposit_proof.startswith('http') else None
+        return None
+
+    def _handle_deposit_proof_upload(self, validated_data):
+        proof_file = validated_data.pop('deposit_proof_file', None)
+        if proof_file:
+            try:
+                image_url = upload_image_to_supabase(proof_file, folder='deposit_proofs')
+                validated_data['deposit_proof'] = image_url
+            except Exception as e:
+                raise serializers.ValidationError(f"Image upload failed: {str(e)}")
+        else:
+            validated_data['deposit_proof'] = None
+
+    def create(self, validated_data):
+        self._handle_deposit_proof_upload(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if 'deposit_proof_file' in validated_data:
+            if instance.deposit_proof:
+                delete_image_from_supabase(instance.deposit_proof)
+            self._handle_deposit_proof_upload(validated_data)
+        return super().update(instance, validated_data)
 
 
 class DepositDetailSerializer(serializers.ModelSerializer):
@@ -100,8 +125,9 @@ class DepositDetailSerializer(serializers.ModelSerializer):
             return 0
 
     def get_deposit_proof_url(self, obj):
-        request = self.context.get('request')
-        return get_file_url(obj.deposit_proof, request)
+        if obj.deposit_proof:
+            return str(obj.deposit_proof) if isinstance(obj.deposit_proof, str) and obj.deposit_proof.startswith('http') else None
+        return None
 
 
 class WalletSerializer(serializers.ModelSerializer):
@@ -166,52 +192,128 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    image_file = serializers.FileField(write_only=True, required=False)
 
     class Meta:
         model = ProductImage
-        fields = ['id', 'image', 'image_url', 'alt_text', 'is_primary', 'order']
+        fields = ['id', 'image', 'image_url', 'image_file', 'alt_text', 'is_primary', 'order']
+        read_only_fields = ['image']
 
     def get_image_url(self, obj):
-        request = self.context.get('request')
-        return get_file_url(obj.image, request)
+        if obj.image:
+            return str(obj.image) if isinstance(obj.image, str) and obj.image.startswith('http') else None
+        return None
+
+    def _handle_image_upload(self, validated_data):
+        image_file = validated_data.pop('image_file', None)
+        if image_file:
+            try:
+                image_url = upload_image_to_supabase(image_file, folder='product_images')
+                validated_data['image'] = image_url
+            except Exception as e:
+                raise serializers.ValidationError(f"Image upload failed: {str(e)}")
+        else:
+            validated_data['image'] = None
+
+    def create(self, validated_data):
+        self._handle_image_upload(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if 'image_file' in validated_data:
+            if instance.image:
+                delete_image_from_supabase(instance.image)
+            self._handle_image_upload(validated_data)
+        return super().update(instance, validated_data)
 
 
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     image_url = serializers.SerializerMethodField()
     product_images = ProductImageSerializer(many=True, read_only=True)
+    image_file = serializers.FileField(write_only=True, required=False)
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'price', 'delivery_charges', 'category', 'category_name', 'image', 'image_url', 'stock', 'is_active', 'product_images', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'description', 'price', 'delivery_charges', 'category', 'category_name', 'image', 'image_url', 'image_file', 'stock', 'is_active', 'product_images', 'created_at', 'updated_at']
+        read_only_fields = ['image']
 
     def get_image_url(self, obj):
-        request = self.context.get('request')
-        return get_file_url(obj.image, request)
+        if obj.image:
+            return str(obj.image) if isinstance(obj.image, str) and obj.image.startswith('http') else None
+        return None
+
+    def _handle_image_upload(self, validated_data):
+        image_file = validated_data.pop('image_file', None)
+        if image_file:
+            try:
+                image_url = upload_image_to_supabase(image_file, folder='products')
+                validated_data['image'] = image_url
+            except Exception as e:
+                raise serializers.ValidationError(f"Image upload failed: {str(e)}")
+        else:
+            validated_data['image'] = None
+
+    def create(self, validated_data):
+        self._handle_image_upload(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if 'image_file' in validated_data:
+            if instance.image:
+                delete_image_from_supabase(instance.image)
+            self._handle_image_upload(validated_data)
+        return super().update(instance, validated_data)
 
 
 class OrderSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_image_url = serializers.SerializerMethodField()
     txid_proof_url = serializers.SerializerMethodField()
+    txid_proof_file = serializers.FileField(write_only=True, required=False)
 
     class Meta:
         model = Order
         fields = ['id', 'user', 'product', 'product_name', 'product_image_url', 'quantity',
               'total_price', 'discount_percentage', 'final_price', 'delivery_charges', 'payment_method',
               'status', 'shipping_address', 'phone', 'email', 'customer_name', 'transaction_id',
-              'txid', 'txid_proof', 'txid_proof_url', 'created_at', 'updated_at']
-        read_only_fields = ['status', 'user', 'total_price', 'final_price']
+              'txid', 'txid_proof', 'txid_proof_file', 'txid_proof_url', 'created_at', 'updated_at']
+        read_only_fields = ['status', 'user', 'total_price', 'final_price', 'txid_proof']
 
     def get_product_image_url(self, obj):
         if not obj.product or not getattr(obj.product, 'image', None):
             return None
-        request = self.context.get('request')
-        return get_file_url(obj.product.image, request)
+        image = getattr(obj.product, 'image', None)
+        if image:
+            return str(image) if isinstance(image, str) and image.startswith('http') else None
+        return None
 
     def get_txid_proof_url(self, obj):
-        request = self.context.get('request')
-        return get_file_url(obj.txid_proof, request)
+        if obj.txid_proof:
+            return str(obj.txid_proof) if isinstance(obj.txid_proof, str) and obj.txid_proof.startswith('http') else None
+        return None
+
+    def _handle_txid_proof_upload(self, validated_data):
+        proof_file = validated_data.pop('txid_proof_file', None)
+        if proof_file:
+            try:
+                image_url = upload_image_to_supabase(proof_file, folder='order_proofs')
+                validated_data['txid_proof'] = image_url
+            except Exception as e:
+                raise serializers.ValidationError(f"Image upload failed: {str(e)}")
+        else:
+            validated_data['txid_proof'] = None
+
+    def create(self, validated_data):
+        self._handle_txid_proof_upload(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if 'txid_proof_file' in validated_data:
+            if instance.txid_proof:
+                delete_image_from_supabase(instance.txid_proof)
+            self._handle_txid_proof_upload(validated_data)
+        return super().update(instance, validated_data)
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
@@ -228,8 +330,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'total_price', 'final_price']
 
     def get_txid_proof_url(self, obj):
-        request = self.context.get('request')
-        return get_file_url(obj.txid_proof, request)
+        if obj.txid_proof:
+            return str(obj.txid_proof) if isinstance(obj.txid_proof, str) and obj.txid_proof.startswith('http') else None
+        return None
 
 
 class ROISettingSerializer(serializers.ModelSerializer):
