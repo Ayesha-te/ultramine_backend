@@ -18,13 +18,32 @@ class DepositAdmin(admin.ModelAdmin):
     list_display = ['user', 'package', 'amount', 'status', 'created_at']
     list_filter = ['status', 'payment_method', 'created_at']
     search_fields = ['user__email', 'package__name']
-    readonly_fields = ['created_at', 'updated_at', 'approved_at']
+    readonly_fields = ['created_at', 'updated_at', 'approved_at', 'deposit_proof_display']
     
     fieldsets = (
-        ('Deposit Info', {'fields': ('user', 'package', 'amount', 'payment_method', 'transaction_id')}),
+        ('Deposit Info', {'fields': ('user', 'package', 'amount', 'payment_method', 'transaction_id', 'account_name')}),
+        ('Proof of Payment', {'fields': ('deposit_proof', 'deposit_proof_display')}),
         ('Status', {'fields': ('status', 'approved_by', 'approved_at', 'rejection_reason')}),
         ('Timestamps', {'fields': ('created_at', 'updated_at')}),
     )
+    
+    def deposit_proof_display(self, obj):
+        if obj.deposit_proof:
+            from django.utils.html import format_html
+            try:
+                file_url = obj.deposit_proof.url
+                file_name = obj.deposit_proof.name.split('/')[-1] if obj.deposit_proof.name else 'Download'
+                return format_html(
+                    '<a href="{}" target="_blank" style="padding: 8px 12px; background-color: #417690; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">{}</a><br><br><img src="{}" style="max-width: 300px; max-height: 300px; margin-top: 10px;" alt="Proof" />',
+                    file_url,
+                    file_name,
+                    file_url
+                )
+            except Exception as e:
+                return format_html('<span style="color: red;">Error loading file: {}</span>', str(e))
+        return 'No proof uploaded'
+    
+    deposit_proof_display.short_description = 'Proof Preview'
     
     actions = ['approve_deposits', 'reject_deposits']
     
