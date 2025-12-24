@@ -70,7 +70,10 @@ class DepositSerializer(serializers.ModelSerializer):
 
     def get_deposit_proof_url(self, obj):
         if obj.deposit_proof:
-            return str(obj.deposit_proof) if isinstance(obj.deposit_proof, str) and obj.deposit_proof.startswith('http') else None
+            try:
+                return str(obj.deposit_proof)
+            except Exception:
+                return None
         return None
 
     def _handle_deposit_proof_upload(self, validated_data):
@@ -126,7 +129,10 @@ class DepositDetailSerializer(serializers.ModelSerializer):
 
     def get_deposit_proof_url(self, obj):
         if obj.deposit_proof:
-            return str(obj.deposit_proof) if isinstance(obj.deposit_proof, str) and obj.deposit_proof.startswith('http') else None
+            try:
+                return str(obj.deposit_proof)
+            except Exception:
+                return None
         return None
 
 
@@ -201,7 +207,10 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         if obj.image:
-            return str(obj.image) if isinstance(obj.image, str) and obj.image.startswith('http') else None
+            try:
+                return str(obj.image)
+            except Exception:
+                return None
         return None
 
     def _handle_image_upload(self, validated_data):
@@ -240,7 +249,10 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         if obj.image:
-            return str(obj.image) if isinstance(obj.image, str) and obj.image.startswith('http') else None
+            try:
+                return str(obj.image)
+            except Exception:
+                return None
         return None
 
     def _handle_image_upload(self, validated_data):
