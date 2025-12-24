@@ -219,7 +219,23 @@ AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default='')
 AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
 AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
 
-if USE_S3:
+USE_SUPABASE = config('USE_SUPABASE', default=False, cast=bool)
+SUPABASE_URL = config('SUPABASE_URL', default='')
+SUPABASE_KEY = config('SUPABASE_KEY', default='')
+SUPABASE_BUCKET = config('SUPABASE_BUCKET', default='')
+
+if USE_SUPABASE:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'config.supabase_storage.SupabaseStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        }
+    }
+    MEDIA_URL = f'{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/'
+    MEDIA_ROOT = BASE_DIR / 'media'
+elif USE_S3:
     if 'storages' not in INSTALLED_APPS:
         INSTALLED_APPS.append('storages')
     

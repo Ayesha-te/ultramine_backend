@@ -7,6 +7,20 @@ from .models import (
 from users.models import User
 
 
+def get_file_url(file_field, request=None):
+    if not file_field:
+        return None
+    try:
+        if isinstance(file_field, memoryview):
+            return None
+        url = file_field.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+    except Exception:
+        return None
+
+
 class MiningPackageSerializer(serializers.ModelSerializer):
     class Meta:
         model = MiningPackage
@@ -45,15 +59,8 @@ class DepositSerializer(serializers.ModelSerializer):
             return 0
 
     def get_deposit_proof_url(self, obj):
-        if obj.deposit_proof and hasattr(obj.deposit_proof, 'url') and not isinstance(obj.deposit_proof, memoryview):
-            try:
-                request = self.context.get('request')
-                if request:
-                    return request.build_absolute_uri(obj.deposit_proof.url)
-                return obj.deposit_proof.url
-            except Exception:
-                return None
-        return None
+        request = self.context.get('request')
+        return get_file_url(obj.deposit_proof, request)
 
 
 class DepositDetailSerializer(serializers.ModelSerializer):
@@ -83,15 +90,8 @@ class DepositDetailSerializer(serializers.ModelSerializer):
             return 0
 
     def get_deposit_proof_url(self, obj):
-        if obj.deposit_proof and hasattr(obj.deposit_proof, 'url') and not isinstance(obj.deposit_proof, memoryview):
-            try:
-                request = self.context.get('request')
-                if request:
-                    return request.build_absolute_uri(obj.deposit_proof.url)
-                return obj.deposit_proof.url
-            except Exception:
-                return None
-        return None
+        request = self.context.get('request')
+        return get_file_url(obj.deposit_proof, request)
 
 
 class WalletSerializer(serializers.ModelSerializer):
@@ -162,15 +162,8 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = ['id', 'image', 'image_url', 'alt_text', 'is_primary', 'order']
 
     def get_image_url(self, obj):
-        if obj.image and hasattr(obj.image, 'url') and not isinstance(obj.image, memoryview):
-            try:
-                request = self.context.get('request')
-                if request:
-                    return request.build_absolute_uri(obj.image.url)
-                return obj.image.url
-            except Exception:
-                return None
-        return None
+        request = self.context.get('request')
+        return get_file_url(obj.image, request)
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -183,15 +176,8 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'price', 'delivery_charges', 'category', 'category_name', 'image', 'image_url', 'stock', 'is_active', 'product_images', 'created_at', 'updated_at']
 
     def get_image_url(self, obj):
-        if obj.image and hasattr(obj.image, 'url') and not isinstance(obj.image, memoryview):
-            try:
-                request = self.context.get('request')
-                if request:
-                    return request.build_absolute_uri(obj.image.url)
-                return obj.image.url
-            except Exception:
-                return None
-        return None
+        request = self.context.get('request')
+        return get_file_url(obj.image, request)
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -208,28 +194,14 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = ['status', 'user', 'total_price', 'final_price']
 
     def get_product_image_url(self, obj):
-        if obj.product and getattr(obj.product, 'image', None):
-            image = obj.product.image
-            if hasattr(image, 'url') and not isinstance(image, memoryview):
-                try:
-                    request = self.context.get('request')
-                    if request:
-                        return request.build_absolute_uri(image.url)
-                    return image.url
-                except Exception:
-                    return None
-        return None
+        if not obj.product or not getattr(obj.product, 'image', None):
+            return None
+        request = self.context.get('request')
+        return get_file_url(obj.product.image, request)
 
     def get_txid_proof_url(self, obj):
-        if obj.txid_proof and hasattr(obj.txid_proof, 'url') and not isinstance(obj.txid_proof, memoryview):
-            try:
-                request = self.context.get('request')
-                if request:
-                    return request.build_absolute_uri(obj.txid_proof.url)
-                return obj.txid_proof.url
-            except Exception:
-                return None
-        return None
+        request = self.context.get('request')
+        return get_file_url(obj.txid_proof, request)
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
@@ -246,15 +218,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'total_price', 'final_price']
 
     def get_txid_proof_url(self, obj):
-        if obj.txid_proof and hasattr(obj.txid_proof, 'url') and not isinstance(obj.txid_proof, memoryview):
-            try:
-                request = self.context.get('request')
-                if request:
-                    return request.build_absolute_uri(obj.txid_proof.url)
-                return obj.txid_proof.url
-            except Exception:
-                return None
-        return None
+        request = self.context.get('request')
+        return get_file_url(obj.txid_proof, request)
 
 
 class ROISettingSerializer(serializers.ModelSerializer):
