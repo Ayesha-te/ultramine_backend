@@ -184,7 +184,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8082',
     'https://ultamine-pro-hub.vercel.app',
     'https://ultamine-pro-hub-37.vercel.app',
-    'https://grand-enrichetta-sagiyqwgey-54c3b5af.koyeb.app',
+    'https://unexpected-grouse-sagiyqwgey-046e21d9.koyeb.app',
 ]
 
 CORS_ALLOW_CREDENTIALS = True
